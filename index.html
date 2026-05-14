@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Audio Particles</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <style>
+    html,body{height:100%;margin:0;font-family:'Josefin Sans',sans-serif;background:#030303;overflow:hidden}
+    /* header */
+    #header{position:fixed;z-index:100;width:100%;padding:20px;color:#69cdd7;display:flex;align-items:center;justify-content:space-between;flex-direction:column;box-sizing:border-box}
+    #title{font-size:1.2em;text-align:center}
+    #controls{display:flex;padding:15px}
+    .btn{position:relative;margin:0 10px;cursor:pointer;transition:opacity .5s;user-select:none}
+    .btn:active{transform:scale(.9)}.btn.disabled{pointer-events:none;opacity:.2}
+    .fa{width:16px;pointer-events:none}.fa.off{color:#efefef;opacity:.4}
+    /* background, canvas, glow */
+    #background{position:absolute;top:0;left:0;z-index:0;width:100vw;height:100vh;background-image:radial-gradient(rgba(105,205,215,.5),rgba(10,20,30,.5));background-position:100% 100%;background-size:200% 200%;opacity:1;transition:opacity 2s}
+    #background.hidden{opacity:0}
+    #background.loading{opacity:.2}
+    #canvas,#glow-layer{position:absolute;top:0;left:0;height:100vh;width:100vw;overflow:hidden}
+    #canvas{z-index:1}#glow-layer{z-index:0}
+    /* loader */
+    #loader{position:absolute;bottom:20px;left:20px;z-index:3;display:flex;align-items:center;justify-content:flex-start;width:100vw;opacity:0;transition:opacity .5s}
+    #loading-text{font-size:1.8em;color:#69cdd7;transition:all .5s}
+    #spinner{position:relative;height:40px;width:40px;border:2px solid transparent;border-color:transparent transparent #69cdd7 #69cdd7;border-radius:50%;margin-right:10px;transform:rotate(0)}
+    #spinner::before,#spinner::after{position:absolute;content:'';display:block;border:2px solid transparent;border-color:transparent transparent #69cdd7 #69cdd7;border-radius:50%}
+    #spinner::before{top:3px;left:3px;height:30px;width:30px}
+    #spinner::after{top:8px;left:8px;height:20px;width:20px}
+    .loading #loader{opacity:1} .loading #spinner{animation:spin 2s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    /* controls link and progress */
+    #codepen-link{position:absolute;bottom:20px;right:20px;height:40px;width:40px;z-index:10;border-radius:50%;box-sizing:border-box;background-image:url('https://s3-us-west-2.amazonaws.com/s.cdpn.io/544318/logo.jpg');background-position:center;background-size:cover;opacity:.4;transition:all .25s}
+    #codepen-link:hover{opacity:.8;box-shadow:0 0 6px #efefef}
+    #progress-bar{position:absolute;left:0;top:0;z-index:3;width:100%;height:4px;background:#69cdd7;transform:scaleX(0);transform-origin:center left;transition:transform .5s linear}
+    /* start button */
+    .make-google-happy-button{position:absolute;padding:1rem 1rem .8rem 1rem;top:50%;left:50%;transform:translate(-50%,-50%);z-index:4;border:1px solid #69cdd7;color:#69cdd7;font-size:1.2em;cursor:pointer;transition:all .5s}
+    .make-google-happy-button:hover{background:#69cdd7;color:#333}
+    .make-google-happy-button.hidden{opacity:0;transform:translate(-50%,-50%)}
+    @media (min-width:600px){#header{flex-direction:row}#controls{padding:0}}
+  </style>
+</head>
+<body>
+  <header id="header">
+    <h1 id="title"></h1>
+    <div id="controls">
+      <div class="btn" id="btn-wave"><i class="fa fa-exchange"></i></div>
+      <div class="btn" id="btn-lights"><i class="fa fa-sun-o"></i></div>
+      <div class="btn" id="btn-prev"><i class="fa fa-backward"></i></div>
+      <div class="btn" id="btn-play"><i class="fa fa-play"></i></div>
+      <div class="btn" id="btn-next"><i class="fa fa-forward"></i></div>
+      <div class="btn" id="btn-volume"><i class="fa fa-volume-up"></i></div>
+    </div>
+  </header>
+
+  <div id="background"></div>
+
+  <div id="loader">
+    <div id="spinner"></div>
+    <h2 id="loading-text">Loading...</h2>
+  </div>
+
+  <canvas id="glow-layer"></canvas>
+  <canvas id="canvas"></canvas>
+  <audio id="audio" crossorigin="anonymous"></audio>
+
+  <div id="progress-bar"></div>
+
+  <a class="make-google-happy-button">Click to Start</a>
+  <a id="codepen-link" href="https://www.codepen.io/seanfree" target="_blank" rel="noreferrer"></a>
+
+  <script>
+    class Vector2 {
+      constructor(x=0,y=0){this.x=x;this.y=y}
+      add(v){this.x+=v.x;this.y+=v.y;return this}
+      subY(v){this.y-=v;return this}
+    }
+
+    class Particle {
+      constructor(index,parent){this.index=index;this.parent=parent;this.minSize=5;this.init()}
+      init(){
+        this.freqVal = this.parent.freqData[this.index]*0.01 || 0;
+        this.size = this.freqVal * ((this.parent.dimensions.x+this.parent.dimensions.y)*0.5)*0.0125 + this.minSize;
+        this.position = new Vector2(Math.random()*this.parent.dimensions.x, this.parent.dimensions.y + this.size + Math.random()*50);
+        this.velocity = new Vector2(2 - Math.random()*4, 0);
+      }
+      update(){
+        this.freqVal = this.parent.freqData[this.index]*0.01 || 0;
+        this.size = this.freqVal*20 + this.minSize;
+        this.hue = (this.index / this.parent.analyser.frequencyBinCount) * 360 + 120 + this.parent.tick/6;
+        this.saturation = this.freqVal * 50;
+        this.alpha = this.freqVal * 0.3;
+        this.fill = `hsla(${this.hue}, ${this.saturation}%, 50%, ${this.alpha})`;
+        this.lift = Math.pow(this.freqVal,3);
+        this.position.subY(this.lift + 0.5);
+        this.position.add(this.velocity);
+        this.checkBounds();
+      }
+      checkBounds(){
+        if(this.position.y < -this.size || this.position.x < -this.parent.dimensions.x*0.15 || this.position.x > this.parent.dimensions.x*1.15) this.init();
+      }
+    }
+
+    class App {
+      constructor(){
+        this.globalMovement = new Vector2();
+        this.initCanvas();
+        this.initUI();
+        this.initAudio();
+        this.btnMakeGoogleHappy = document.querySelector(".make-google-happy-button");
+        this.btnMakeGoogleHappy.addEventListener("click",()=>{ this.audioCtx.resume(); this.loadAudio(); this.btnMakeGoogleHappy.classList.add("hidden"); });
+        this.populate();
+        this.render();
+        window.onresize = ()=>this.resize();
+      }
+      initCanvas(){ this.tick=0; this.dark=false; this.wave=true; this.canvas=document.getElementById("canvas"); this.ctx=this.canvas.getContext("2d"); this.glowLayer=document.getElementById("glow-layer"); this.glowCtx=this.glowLayer.getContext("2d"); this.dimensions={}; this.resize(); }
+      resize(){ this.canvas.width=this.glowLayer.width=this.dimensions.x=window.innerWidth; this.canvas.height=this.glowLayer.height=this.dimensions.y=window.innerHeight; }
+      initUI(){
+        this.progressBar = document.querySelector("#progress-bar");
+        this.controls = {
+          wave: document.querySelector("#btn-wave"),
+          lights: document.querySelector("#btn-lights"),
+          prev: document.querySelector("#btn-prev"),
+          next: document.querySelector("#btn-next"),
+          play: document.querySelector("#btn-play"),
+          volume: document.querySelector("#btn-volume")
+        };
+        this.controls.wave.onclick = ()=>{ let i=this.controls.wave.querySelector("i"); if(this.wave){ i.classList.add("off"); this.wave=false } else { i.classList.remove("off"); this.wave=true } };
+        this.controls.lights.onclick = ()=>{ let i=this.controls.lights.querySelector("i"); if(this.dark){ i.classList.remove("off"); this.background.classList.remove("hidden"); this.dark=false } else { i.classList.add("off"); this.background.classList.add("hidden"); this.dark=true } };
+        this.controls.prev.onclick = ()=>{ this.currentSong = this.currentSong>1? this.currentSong-1 : this.fileNames.length; this.loadAudio(); };
+        this.controls.next.onclick = ()=>{ this.currentSong = this.currentSong < this.fileNames.length ? this.currentSong+1 : 1; this.loadAudio(); };
+        this.controls.play.onclick = ()=>{ let i=this.controls.play.querySelector("i"); if(this.playing && this.audioReady){ i.classList.replace("fa-pause","fa-play"); this.playing=false; this.audio.pause() } else if(!this.playing && this.audioReady){ i.classList.replace("fa-play","fa-pause"); this.playing=true; this.audio.play().catch(()=>{}); } };
+        this.controls.volume.onclick = ()=>{ let i=this.controls.volume.querySelector("i"); this.volume = this.volume > 0 ? this.volume - 0.5 : 1; if(this.volume===1){ i.classList.replace("fa-volume-off","fa-volume-up") } else if(this.volume===0.5){ i.classList.replace("fa-volume-up","fa-volume-down") } else if(this.volume===0){ i.classList.replace("fa-volume-down","fa-volume-off") } this.gainNode.gain.value = this.volume; };
+        this.background = document.getElementById("background");
+        this.title = document.getElementById("title");
+      }
+      initAudio(){
+        this.currentSong=1; this.volume=1;
+        this.baseURL = "./"; // 已改为相对路径（和 html 同目录）
+        this.fileNames = ["dmwaltz.mp3","nocturne92.mp3","mozart25.mp3","trista.mp3","waltzflowers.mp3"];
+        this.songTitles = ["Dmitri Shostakovich - Waltz No. 2","Frederic Chopin - Nocturne op. 9 no. 2","Mozart - Symphony no. 25","Heitor Villa-Lobos - Tristorosa","Pyotr Tchaikovsky - Waltz of the Flowers"];
+        this.audio = document.getElementById("audio");
+        this.audio.addEventListener("ended",()=>{ this.audio.currentTime=0; this.audio.pause(); this.currentSong = this.currentSong < this.fileNames.length ? this.currentSong+1 : 1; this.loadAudio(); });
+        this.audio.addEventListener("timeupdate",()=>{ if(this.audio.duration>0) this.progressBar.style.transform = `scaleX(${this.audio.currentTime/this.audio.duration})`; });
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        this.source = this.audioCtx.createMediaElementSource(this.audio);
+        this.gainNode = this.audioCtx.createGain();
+        this.analyser = this.audioCtx.createAnalyser();
+        this.analyser.smoothingTimeConstant = 0.92;
+        this.analyser.fftSize = 2048;
+        this.analyser.minDecibels = -125;
+        this.analyser.maxDecibels = -10;
+        this.source.connect(this.gainNode);
+        this.gainNode.connect(this.analyser);
+        this.analyser.connect(this.audioCtx.destination);
+        this.gainNode.gain.value = this.volume;
+        this.freqData = new Uint8Array(this.analyser.frequencyBinCount);
+      }
+      loadAudio(){
+        // Minimal change: 直接设置 audio.src 为相对路径文件，适合 GitHub Pages 托管
+        this.audioReady=false; this.playing=false; this.background.classList.add("loading");
+        this.controls.prev.classList.add("disabled"); this.controls.next.classList.add("disabled"); this.controls.play.classList.add("disabled");
+
+        const src = this.baseURL + this.fileNames[this.currentSong-1];
+        this.audio.pause();
+        this.audio.src = src;
+        this.audio.load();
+
+        const canPlayHandler = () => {
+          this.playAudio();
+          this.audio.removeEventListener('canplaythrough', canPlayHandler);
+        };
+        const errorHandler = (e) => {
+          console.error('Audio load error', e);
+          this.background.classList.remove("loading");
+          this.audio.removeEventListener('error', errorHandler);
+        };
+        this.audio.addEventListener('canplaythrough', canPlayHandler);
+        this.audio.addEventListener('error', errorHandler);
+      }
+      playAudio(){
+        this.audioReady=true; this.playing=true; this.background.classList.remove("loading");
+        this.title.textContent = this.songTitles[this.currentSong-1];
+        this.controls.prev.classList.remove("disabled"); this.controls.next.classList.remove("disabled"); this.controls.play.classList.remove("disabled");
+        let playIcon = this.controls.play.querySelector("i"); playIcon.classList.remove("fa-play"); playIcon.classList.add("fa-pause");
+        this.audio.play().catch(()=>{});
+      }
+      populate(){ this.particles=[]; for(let i=0;i<625;i++) this.particles.push(new Particle(i,this)); }
+      update(){
+        this.ctx.clearRect(0,0,this.dimensions.x,this.dimensions.y);
+        this.ctx.save(); this.ctx.globalCompositeOperation="lighten";
+        for(let i=this.particles.length-1;i>=0;i--){
+          let p=this.particles[i];
+          if(this.freqData[i]>0){
+            p.update();
+            if(this.wave) p.position.add(this.globalMovement);
+            this.ctx.fillStyle=p.fill;
+            this.ctx.beginPath();
+            this.ctx.arc(p.position.x,p.position.y,p.size,0,Math.PI*2);
+            this.ctx.fill();
+            this.ctx.closePath();
+          }
+        }
+        this.ctx.restore();
+        this.glowCtx.clearRect(0,0,this.dimensions.x,this.dimensions.y);
+        this.glowCtx.filter = "blur(8px) saturate(150%) brightness(150%)";
+        this.glowCtx.drawImage(this.canvas,0,0);
+      }
+      render(){
+        this.tick++;
+        if(this.wave) this.globalMovement.x = Math.sin(this.tick*0.01)*2;
+        this.analyser.getByteFrequencyData(this.freqData);
+        this.update();
+        requestAnimationFrame(this.render.bind(this));
+      }
+    }
+
+    // RAF polyfill (kept minimal)
+    window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || function(cb){return setTimeout(cb,1000/60)};
+
+    window.onload = ()=>{ new App(); };
+  </script>
+</body>
+</html>
