@@ -62,7 +62,7 @@ body{
   .player{width:100%}
 }
 
-/* 可选的呼吸动画，若不需要可以删除 */
+/* 可选的呼吸动画（若不需要可删除） */
 @keyframes pulse{
   0%   {transform:scale(1);}
   50%  {transform:scale(1.04);}
@@ -73,7 +73,7 @@ body{
 </head>
 <body>
 <main class="wrap">
-  <!-- 播放器 -->
+  <!-- 播放器区域 -->
   <section class="card player" aria-label="音乐播放器">
     <div class="visual" id="visual"><div class="note">♪</div></div>
 
@@ -83,7 +83,7 @@ body{
         <div id="subtitle" class="subtitle"></div>
       </div>
 
-      <!-- 兼容音频/视频，隐藏显示 -->
+      <!-- video 同时兼容音频/视频，保持隐藏 -->
       <video id="media" preload="metadata" style="display:none"></video>
 
       <div class="controls">
@@ -91,6 +91,7 @@ body{
         <button id="play" class="btn" title="播放 / 暂停">▶</button>
         <button id="next" class="btn" title="下一首">⟲</button>
         <div style="flex:1"></div>
+        <!-- 已改为合法字符 -->
         <button id="shuffle" class="btn" title="随机">🔀</button>
       </div>
 
@@ -110,11 +111,13 @@ body{
 </main>
 
 <script>
-// ---------- 常量 ----------
+/* ---------- 常量 ---------- */
 const SUPPORTED = ['.mp3','.mp4','.wav','.ogg','.m4a','.flac','.aac'];
-const MANIFEST = './songs.json';   // 必须放在同目录，建议使用本地服务器访问
 
-// ---------- DOM ----------
+/* 计算出同目录下 songs.json 的绝对 URL（在 GitHub Pages、Dev、或本地服务器均可） */
+const manifestURL = new URL('songs.json', document.currentScript.src).href;
+
+/* ---------- DOM 引用 ---------- */
 const media        = document.getElementById('media');
 const playBtn      = document.getElementById('play');
 const prevBtn      = document.getElementById('prev');
@@ -128,13 +131,13 @@ const progressWrap = document.getElementById('progressWrap');
 const countEl      = document.getElementById('count');
 const timeEl       = document.getElementById('time');
 
-// ---------- 状态 ----------
-let playlist = [];   // [{name, url}]
+/* ---------- 状态 ---------- */
+let playlist = [];   // [{name,url}]
 let idx = -1;
 let isPlaying = false;
 let shuffled = false;
 
-// ---------- 工具 ----------
+/* ---------- 工具函数 ---------- */
 function fmt(sec){
   if(!isFinite(sec)) return '0:00';
   sec = Math.floor(sec);
@@ -143,20 +146,19 @@ function fmt(sec){
   return `${m}:${s}`;
 }
 
-// ---------- 加载 songs.json ----------
+/* ---------- 加载 songs.json ---------- */
 async function loadManifest(){
   try{
-    const res = await fetch(MANIFEST, {cache:'no-store'});
+    const res = await fetch(manifestURL, {cache:'no-store'});
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    // 只保留受支持的后缀
     playlist = (Array.isArray(data) ? data : [])
       .filter(fn => typeof fn === 'string' &&
                     SUPPORTED.some(ext => fn.toLowerCase().endsWith(ext)))
       .map(fn => ({
         name: fn,
-        url : './' + encodeURIComponent(fn)   // 防止中文或空格被误解
+        url : './' + encodeURIComponent(fn)   // 防止空格、中文被误解
       }));
 
     if(playlist.length===0) throw new Error('empty or unsupported list');
@@ -172,7 +174,7 @@ async function loadManifest(){
   }
 }
 
-// ---------- 列表渲染 ----------
+/* ---------- 列表渲染 ---------- */
 function renderList(){
   listInner.innerHTML = '';
   playlist.forEach((t,i)=>{
@@ -189,7 +191,7 @@ function renderEmpty(){
   subtitleEl.textContent = '';
 }
 
-// ---------- 播放控制 ----------
+/* ---------- 播放控制 ---------- */
 function loadTrack(i){
   if(i<0 || i>=playlist.length) return;
   idx = i;
@@ -209,9 +211,10 @@ function attemptPlay(){
       document.getElementById('visual').classList.add('pulse'); // 可选动画
     })
     .catch(err=>{
-      console.error(err);
-      playBtn.textContent = '▶';   // 失败时恢复图标
-      alert('播放被阻止或文件格式不受支持（查看 console）');
+      console.error('play failed', err);
+      // 恢复按钮文字，防止 UI 卡死
+      playBtn.textContent = '▶';
+      alert('播放被阻止或文件格式不受支持（查看控制台）');
     });
 }
 function play(){ attemptPlay(); }
@@ -233,12 +236,12 @@ function prev(){
   loadTrack(idx);
   attemptPlay();
 }
-shuffleBtn.addEventListener('click',()=> {
+shuffleBtn.addEventListener('click',()=>{
   shuffled = !shuffled;
   shuffleBtn.style.borderColor = shuffled ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.04)';
 });
 
-// ---------- UI 交互 ----------
+/* ---------- UI 交互 ---------- */
 playBtn.addEventListener('click',()=> isPlaying ? pause() : play());
 nextBtn.addEventListener('click',next);
 prevBtn.addEventListener('click',prev);
@@ -253,12 +256,12 @@ media.addEventListener('ended',next);
 
 progressWrap.addEventListener('click',e=>{
   const rect = progressWrap.getBoundingClientRect();
-  const clickPos = e.clientX - rect.left;
-  const pct = clickPos / rect.width;
+  const clickX = e.clientX - rect.left;
+  const pct = clickX / rect.width;
   if(media.duration) media.currentTime = pct * media.duration;
 });
 
-// ---------- 初始化 ----------
+/* ---------- 初始化 ---------- */
 loadManifest();
 </script>
 </body>
