@@ -2,219 +2,246 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>Noir Essence v7.0 - High Contrast</title>
+<title>Noir Essence v8.0 - Studio Signature</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://unpkg.com/lucide@latest"></script>
 <style>
 :root {
-  /* 调高对比度的色彩体系 */
-  --bg-deep: #020202;         /* 极纯黑背景 */
-  --card-surface: #0d0d0f;    /* 播放器表面 - 炭灰色 */
-  --text-main: #ffffff;       /* 主文字 - 纯白 */
-  --text-muted: #888888;      /* 辅助文字 - 中灰 */
-  --accent-white: #ffffff;    /* 强调色 */
-  --border-glow: rgba(255, 255, 255, 0.08); /* 边缘倒角反光 */
+  --bg-base: #050506;
+  --panel-bg: rgba(18, 18, 20, 0.85);
+  --accent-white: #ffffff;
+  --text-dim: #555558;
+  --glow: rgba(255, 255, 255, 0.05);
 }
 
 * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
 
+/* 甲方要求的：质感背景 - 增加噪声和流动光影 */
 body {
-  margin: 0; font-family: "Inter", -apple-system, system-ui, sans-serif;
-  background-color: var(--bg-deep);
-  color: var(--text-main);
-  display: flex; align-items: center; justify-content: center; min-height: 100vh;
+  margin: 0; font-family: "Inter", sans-serif;
+  background-color: var(--bg-base);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3仿真噪声%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden;
 }
 
-/* 播放器主体 */
+/* 动态深海光晕 */
+body::before {
+  content: ""; position: absolute; width: 140%; height: 140%;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.03) 0%, transparent 50%);
+  animation: drift 20s infinite alternate linear; z-index: -1;
+}
+
+@keyframes drift {
+  from { transform: translate(-10%, -10%); }
+  to { transform: translate(10%, 10%); }
+}
+
+/* 播放器主体：精密仪器感 */
 .player-wrap {
-  width: 370px; 
-  background: var(--card-surface);
-  border-radius: 40px;
-  padding: 36px;
-  /* 增加外阴影让层次分明，内阴影增加金属感 */
-  box-shadow: 0 50px 100px rgba(0,0,0,0.9), 
-              inset 0 1px 1px var(--border-glow);
+  width: 400px; padding: 40px; border-radius: 48px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: 0 50px 100px rgba(0,0,0,0.8), inset 0 0 20px rgba(255,255,255,0.02);
   position: relative;
-  border: 1px solid rgba(255,255,255,0.03); /* 极细的外边框 */
 }
 
-/* 顶部信息 */
-.top-meta {
-  display: flex; justify-content: space-between;
-  font-size: 10px; font-weight: 700; letter-spacing: 2px;
-  color: var(--text-muted); margin-bottom: 30px; text-transform: uppercase;
+/* 状态指示器 */
+.status-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 9px; letter-spacing: 2px; color: var(--text-dim);
+  margin-bottom: 30px; text-transform: uppercase;
 }
 
-/* 核心视窗：电平脉冲动画 */
-.display-unit {
-  padding: 10px 0 35px;
-  text-align: center;
+.decode-anim::after {
+  content: "..."; animation: dots 1.5s steps(4, end) infinite;
 }
-.visual-bars {
-  display: flex; justify-content: center; gap: 5px; height: 24px; margin-bottom: 24px; align-items: flex-end;
-}
-.bar { width: 3px; background: var(--accent-white); border-radius: 1px; height: 4px; opacity: 0.8; }
-.playing .bar { animation: pulse 0.7s infinite ease-in-out; }
-.bar:nth-child(2) { animation-delay: 0.15s; }
-.bar:nth-child(3) { animation-delay: 0.3s; }
-@keyframes pulse { 0%, 100% { height: 4px; opacity: 0.3; } 50% { height: 24px; opacity: 1; } }
+@keyframes dots { 0%, 20% { content: "."; } 40% { content: ".."; } 60% { content: "..."; } 80%, 100% { content: ""; } }
 
-.title { 
-  font-size: 26px; font-weight: 700; margin: 0; letter-spacing: -1px; 
-  color: var(--text-main); text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+/* 专业级电平表 */
+.visualizer {
+  display: flex; justify-content: center; align-items: flex-end;
+  gap: 4px; height: 40px; margin-bottom: 30px;
 }
-.artist { 
-  font-size: 14px; color: var(--text-muted); margin-top: 10px; font-weight: 400;
+.v-bar {
+  width: 2px; background: var(--accent-white); border-radius: 1px;
+  height: 4px; opacity: 0.1; transition: 0.2s;
+}
+.playing .v-bar { animation: analyzer 0.6s infinite ease-in-out; opacity: 0.6; }
+/* 随机化高度 */
+.v-bar:nth-child(odd) { animation-duration: 0.8s; }
+.v-bar:nth-child(3n) { animation-duration: 0.5s; }
+
+@keyframes analyzer {
+  0%, 100% { height: 4px; }
+  50% { height: 35px; }
 }
 
-/* 进度控制 */
-.scrubber { margin: 30px 0; cursor: pointer; padding: 10px 0; }
-.rail { height: 4px; background: #1a1a1c; position: relative; border-radius: 2px; }
-.fill { height: 100%; width: 0%; background: var(--accent-white); border-radius: 2px; position: relative; box-shadow: 0 0 10px rgba(255,255,255,0.2); }
+.info-zone { text-align: center; margin-bottom: 35px; }
+.title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; }
+.artist { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+
+/* 进度条：增加点击热区和发光效果 */
+.scrubber { margin-bottom: 30px; cursor: pointer; padding: 15px 0; }
+.rail { height: 2px; background: rgba(255,255,255,0.1); position: relative; }
+.fill { 
+  height: 100%; width: 0%; background: #fff; position: relative;
+  box-shadow: 0 0 15px rgba(255,255,255,0.3);
+}
 .fill::after {
-  content: ""; position: absolute; right: -7px; top: -5px;
-  width: 14px; height: 14px; background: #fff; border-radius: 50%;
-  box-shadow: 0 0 15px rgba(255,255,255,0.5); transform: scale(1); /* 常驻滑块提升易用性 */
+  content: ""; position: absolute; right: -4px; top: -4px;
+  width: 10px; height: 100px; /* 隐形热区 */
 }
 
-.time-row { 
-  display: flex; justify-content: space-between; 
-  font-size: 11px; font-weight: 600; color: var(--text-muted); 
-  margin-top: 14px; font-family: 'JetBrains Mono', monospace; 
+/* 控制按钮：增加动效 */
+.controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+.btn { 
+  background: none; border: none; color: var(--text-dim); cursor: pointer; transition: 0.3s;
+  display: flex; align-items: center; justify-content: center;
 }
+.btn:hover { color: #fff; transform: scale(1.1); }
 
-/* 交互按钮 */
-.control-row { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 35px; }
-.btn {
-  background: none; border: none; color: var(--text-muted); cursor: pointer;
-  transition: 0.2s; font-size: 12px; font-weight: 800; padding: 12px;
+.play-main {
+  width: 72px; height: 72px; background: #fff; color: #000; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 0 rgba(255,255,255,0.2); transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
-.btn:hover { color: var(--text-main); }
-.btn-play {
-  width: 66px; height: 66px; background: var(--accent-white); color: #000;
-  border-radius: 50%; display: grid; place-items: center; font-size: 22px;
-  box-shadow: 0 15px 30px rgba(0,0,0,0.4); border: none; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-.btn-play:active { transform: scale(0.92); }
+.playing .play-main { box-shadow: 0 0 30px rgba(255,255,255,0.1); }
+.play-main:active { transform: scale(0.9); }
 
-/* 列表区及自定义滚动条 */
-.list-area {
-  height: 130px; overflow-y: auto; position: relative;
-  border-top: 1px solid var(--line); padding-top: 10px;
-  mask-image: linear-gradient(to bottom, transparent, #000 10%, #000 90%, transparent);
+/* 列表区：甲方要求的动态反馈 */
+.track-list {
+  max-height: 140px; overflow-y: auto;
+  mask-image: linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
 }
-.list-item {
-  padding: 14px 10px; font-size: 13px; color: var(--text-muted);
-  display: flex; justify-content: space-between; cursor: pointer; border-radius: 12px;
-  transition: 0.2s;
+.track-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 10px; border-radius: 12px; transition: 0.2s; cursor: pointer;
+  margin-bottom: 2px; font-size: 13px; color: var(--text-dim);
 }
-.list-item:hover { color: var(--text-main); background: rgba(255,255,255,0.03); }
-.list-item.active { color: var(--text-main); font-weight: 700; background: rgba(255,255,255,0.05); }
+.track-item:hover { background: rgba(255,255,255,0.03); color: #fff; }
+.track-item.active { background: rgba(255,255,255,0.06); color: #fff; }
 
-/* 自定义滚动条修正 - 确保可见度 */
-.list-area::-webkit-scrollbar { width: 4px; }
-.list-area::-webkit-scrollbar-track { background: transparent; }
-.list-area::-webkit-scrollbar-thumb { 
-  background: rgba(255, 255, 255, 0.2); /* 提高可见度 */
-  border-radius: 10px; 
+/* 动态波纹图标 */
+.playing-icon {
+  display: none; width: 12px; gap: 2px; align-items: flex-end; height: 10px;
 }
-.list-area::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
+.active .playing-icon { display: flex; }
+.active .playing-icon span {
+  width: 2px; background: #fff; animation: wave 0.6s infinite alternate;
+}
+@keyframes wave { from { height: 2px; } to { height: 10px; } }
 
-/* 响应式 */
-@media (max-width: 400px) { .player-wrap { width: 92vw; padding: 25px; } }
+/* 自定义滚动条 */
+.track-list::-webkit-scrollbar { width: 2px; }
+.track-list::-webkit-scrollbar-thumb { background: #333; }
 </style>
 </head>
 <body>
 
-<div class="player-wrap" id="mainContainer">
-  <video id="audio" style="display:none"></video>
+<div class="player-wrap" id="player">
+  <audio id="audio"></audio>
 
-  <div class="top-meta">
-    <span>Reference Mode</span>
-    <span id="bitrate">PCM 24-bit</span>
+  <div class="status-bar">
+    <span id="state-text" class="decode-anim">Decoding Logic</span>
+    <span>24bit / 192kHz</span>
   </div>
 
-  <div class="display-unit">
-    <div class="visual-bars">
-      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-    </div>
-    <div class="info-block">
-      <div class="title" id="title">Standby</div>
-      <div class="artist" id="artist">System Online</div>
-    </div>
+  <!-- 专业频谱 -->
+  <div class="visualizer">
+    <div class="v-bar"></div><div class="v-bar"></div><div class="v-bar"></div>
+    <div class="v-bar"></div><div class="v-bar"></div><div class="v-bar"></div>
+    <div class="v-bar"></div><div class="v-bar"></div><div class="v-bar"></div>
+    <div class="v-bar"></div><div class="v-bar"></div><div class="v-bar"></div>
+  </div>
+
+  <div class="info-zone">
+    <div class="title" id="title">Initialize</div>
+    <div class="artist" id="artist">Waiting for source</div>
   </div>
 
   <div class="scrubber" id="scrubber">
     <div class="rail"><div class="fill" id="fill"></div></div>
-    <div class="time-row">
+    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-dim); margin-top:12px; font-family:monospace;">
       <span id="cur">00:00</span>
       <span id="dur">00:00</span>
     </div>
   </div>
 
-  <div class="control-row">
-    <button class="btn" id="shuf">SHUF</button>
-    <button class="btn" id="prev">⏮</button>
-    <button class="btn-play" id="play">▶</button>
-    <button class="btn" id="next">⏭</button>
-    <button class="btn" id="loop">LOOP</button>
+  <div class="controls">
+    <button class="btn"><i data-lucide="shuffle" size="18"></i></button>
+    <button class="btn" id="prev"><i data-lucide="chevrons-left"></i></button>
+    <button class="play-main" id="play"><i data-lucide="play" id="playIcon" fill="currentColor"></i></button>
+    <button class="btn" id="next"><i data-lucide="chevrons-right"></i></button>
+    <button class="btn"><i data-lucide="volume-2" size="18"></i></button>
   </div>
 
-  <div class="list-area" id="list">
-    <!-- 动态生成 -->
-  </div>
+  <div class="track-list" id="list"></div>
 </div>
 
 <script>
+lucide.createIcons();
+
 const songs = [
-  "1.mp3", "Void_Walker.wav", "Noir_Etude.flac", "Obsidian.mp3"
-].map(f => ({
-  name: f.replace(/\.[^/.]+$/, "").replace(/_/g, " "),
-  ext: f.split('.').pop().toUpperCase(),
-  url: './' + encodeURIComponent(f)
-}));
+  { name: "Void Walker", file: "Void_Walker.wav", type: "LOSSLESS" },
+  { name: "Noir Etude", file: "Noir_Etude.flac", type: "STUDIO" },
+  { name: "Obsidian", file: "Obsidian.mp3", type: "MPEG" },
+  { name: "Synthetic Life", file: "1.mp3", type: "MASTER" }
+];
 
 const audio = document.getElementById('audio');
 const playBtn = document.getElementById('play');
-const mainContainer = document.getElementById('mainContainer');
+const player = document.getElementById('player');
 const fill = document.getElementById('fill');
-const scrubber = document.getElementById('scrubber');
 const list = document.getElementById('list');
 
 let currentIdx = 0;
 
-function formatTime(s) {
-  if (isNaN(s)) return '00:00';
-  const m = Math.floor(s/60);
-  const sec = Math.floor(s%60);
-  return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
-}
-
 function renderList() {
   list.innerHTML = songs.map((s, i) => `
-    <div class="list-item ${i === currentIdx ? 'active' : ''}" onclick="playTrack(${i})">
-      <span>${s.name}</span>
-      <span style="opacity:0.4; font-size:9px; border:1px solid; padding:0 3px; border-radius:2px">${s.ext}</span>
+    <div class="track-item ${i === currentIdx ? 'active' : ''}" onclick="playTrack(${i})">
+      <div style="display:flex; align-items:center; gap:10px">
+        <div class="playing-icon"><span></span><span style="animation-delay:0.2s"></span><span style="animation-delay:0.4s"></span></div>
+        <span>${s.name}</span>
+      </div>
+      <span style="font-size:8px; letter-spacing:1px; opacity:0.5">${s.type}</span>
     </div>
   `).join('');
 }
 
 function playTrack(i) {
+  const isNew = currentIdx !== i || !audio.src;
   currentIdx = i;
-  audio.src = songs[currentIdx].url;
-  document.getElementById('title').textContent = songs[currentIdx].name;
-  document.getElementById('artist').textContent = `Mastering / ${songs[currentIdx].ext} Source`;
+  if(isNew) {
+    audio.src = './' + encodeURIComponent(songs[i].file);
+    document.getElementById('title').textContent = songs[i].name;
+    document.getElementById('artist').textContent = `Bitstream / ${songs[i].type}`;
+  }
   audio.play();
-  playBtn.textContent = '||';
-  mainContainer.classList.add('playing');
+  toggleUI(true);
+}
+
+function toggleUI(playing) {
+  const icon = document.getElementById('playIcon');
+  const stateText = document.getElementById('state-text');
+  if(playing) {
+    player.classList.add('playing');
+    icon.setAttribute('data-lucide', 'pause');
+    stateText.textContent = "Processing Audio";
+    stateText.classList.remove('decode-anim');
+  } else {
+    player.classList.remove('playing');
+    icon.setAttribute('data-lucide', 'play');
+    stateText.textContent = "Signal Standby";
+    stateText.classList.add('decode-anim');
+  }
+  lucide.createIcons();
   renderList();
 }
 
 playBtn.onclick = () => {
-  if (audio.paused) {
-    audio.play(); playBtn.textContent = '||'; mainContainer.classList.add('playing');
-  } else {
-    audio.pause(); playBtn.textContent = '▶'; mainContainer.classList.remove('playing');
-  }
+  if (audio.paused) playTrack(currentIdx);
+  else { audio.pause(); toggleUI(false); }
 };
 
 document.getElementById('next').onclick = () => playTrack((currentIdx + 1) % songs.length);
@@ -227,16 +254,19 @@ audio.ontimeupdate = () => {
   document.getElementById('dur').textContent = formatTime(audio.duration);
 };
 
-audio.onended = () => document.getElementById('next').click();
+function formatTime(s) {
+  const m = Math.floor(s/60 || 0);
+  const sec = Math.floor(s%60 || 0);
+  return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+}
 
-scrubber.onclick = (e) => {
-  const rect = scrubber.querySelector('.rail').getBoundingClientRect();
+document.getElementById('scrubber').onclick = (e) => {
+  const rect = e.currentTarget.querySelector('.rail').getBoundingClientRect();
   audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
 };
 
 // Start
 renderList();
-audio.src = songs[0].url;
 document.getElementById('title').textContent = songs[0].name;
 </script>
 </body>
