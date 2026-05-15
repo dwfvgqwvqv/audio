@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>极简 · 黑白 音乐播放器（无需 songs.json）</title>
+<title>极简·黑白音乐播放器（无需 songs.json）</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root{
@@ -117,7 +117,8 @@ const playlist = [
   "track03.flac"
 ].map(name => ({
   name,
-  url: './' + encodeURIComponent(name)   // 防止空格或中文被误解
+  // 去除首字符可能的斜杠，防止出现 //file.mp3 之类的协议相对 URL
+  url: './' + encodeURIComponent(name.replace(/^\/+/, ''))
 }));
 
 /* ---------- 常量 & DOM ---------- */
@@ -156,26 +157,30 @@ function renderList(){
     const el = document.createElement('div');
     el.className = 'song' + (i===idx ? ' active' : '');
     el.textContent = t.name;
-    el.addEventListener('click',()=>{ idx=i; loadTrack(i); play(); });
+    el.addEventListener('click',()=>{ idx=i; loadTrack(i); });
     listInner.appendChild(el);
   });
   countEl.textContent = playlist.length;
   subtitleEl.textContent = `${playlist.length} 首（写在代码里）`;
 }
 
-/* ---------- 加载/播放 ---------- */
+/* ---------- 加载与播放 ---------- */
 function loadTrack(i){
   if(i<0 || i>=playlist.length) return;
   idx = i;
   const t = playlist[i];
   media.src = t.url;
-  media.load();
+  media.load();               // **不自动播放**，防止自动播放拦截
   titleEl.textContent = t.name;
   document.querySelectorAll('.song')
           .forEach((el,ii)=>el.classList.toggle('active', ii===i));
 }
+
+/* 播放时的错误处理 */
 function attemptPlay(){
   if(!media.src) return;
+  // 确保不是静音状态（若之前为自动播放做了 muted = true，需要恢复）
+  media.muted = false;
   media.play()
     .then(()=>{
       isPlaying = true;
@@ -183,11 +188,18 @@ function attemptPlay(){
       document.getElementById('visual').classList.add('pulse');
     })
     .catch(err=>{
-      console.error('play failed', err);
+      console.error('play failed →', err);
+      // 自动播放被拦截的典型错误名为 NotAllowedError/AbortError
+      if(err.name === 'NotAllowedError' || err.name === 'AbortError'){
+        alert('浏览器阻止了自动播放，请先点击播放按钮。');
+      }else{
+        alert('播放被阻止或文件不受支持（查看 console）。');
+      }
       playBtn.textContent = '▶';
-      alert('播放被阻止或文件不受支持（查看 console）');
     });
 }
+
+/* 控制函数 */
 function play(){ attemptPlay(); }
 function pause(){
   media.pause();
@@ -207,16 +219,18 @@ function prev(){
   loadTrack(idx);
   attemptPlay();
 }
-shuffleBtn.addEventListener('click',()=>{
-  shuffled = !shuffled;
-  shuffleBtn.style.borderColor = shuffled ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.04)';
-});
 
 /* ---------- UI 交互 ---------- */
 playBtn.addEventListener('click',()=> isPlaying ? pause() : play());
 nextBtn.addEventListener('click',next);
 prevBtn.addEventListener('click',prev);
 
+shuffleBtn.addEventListener('click',()=>{
+  shuffled = !shuffled;
+  shuffleBtn.style.borderColor = shuffled ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.04)';
+});
+
+/* ---------- 播放进度 & 结束 ---------- */
 media.addEventListener('timeupdate',()=>{
   if(!media.duration) return;
   const pct = (media.currentTime/media.duration)*100;
@@ -225,6 +239,7 @@ media.addEventListener('timeupdate',()=>{
 });
 media.addEventListener('ended',next);
 
+/* 进度条点击跳转 */
 progressWrap.addEventListener('click',e=>{
   const rect = progressWrap.getBoundingClientRect();
   const clickX = e.clientX - rect.left;
@@ -238,7 +253,7 @@ if(playlist.length===0){
   subtitleEl.textContent = '';
 }else{
   renderList();
-  loadTrack(0);
+  loadTrack(0);   // 只加载第一首，不自动播放
 }
 </script>
 </body>
