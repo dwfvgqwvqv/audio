@@ -2,243 +2,242 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>极简·黑白音乐播放器（无需 songs.json）</title>
+<title>Noir Essence v7.0 - High Contrast</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-:root{
-  --bg:#0b0b0b; --card:#0f0f0f; --muted:#a8a8a8; --accent:#fff;
-  --glass:rgba(255,255,255,0.04); --radius:12px;
+:root {
+  /* 调高对比度的色彩体系 */
+  --bg-deep: #020202;         /* 极纯黑背景 */
+  --card-surface: #0d0d0f;    /* 播放器表面 - 炭灰色 */
+  --text-main: #ffffff;       /* 主文字 - 纯白 */
+  --text-muted: #888888;      /* 辅助文字 - 中灰 */
+  --accent-white: #ffffff;    /* 强调色 */
+  --border-glow: rgba(255, 255, 255, 0.08); /* 边缘倒角反光 */
 }
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0; font-family:Inter,Helvetica,Arial,sans-serif;
-  background:linear-gradient(180deg,var(--bg),#050505); color:var(--accent);
-  display:flex; align-items:center; justify-content:center; padding:28px;
+
+* { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+body {
+  margin: 0; font-family: "Inter", -apple-system, system-ui, sans-serif;
+  background-color: var(--bg-deep);
+  color: var(--text-main);
+  display: flex; align-items: center; justify-content: center; min-height: 100vh;
 }
-.wrap{width:min(980px,96%); display:flex; gap:24px; flex-wrap:wrap}
-.card{
-  background:linear-gradient(180deg,var(--card),#0b0b0b);
-  border-radius:var(--radius); padding:18px;
-  box-shadow:0 10px 30px rgba(0,0,0,.6);
+
+/* 播放器主体 */
+.player-wrap {
+  width: 370px; 
+  background: var(--card-surface);
+  border-radius: 40px;
+  padding: 36px;
+  /* 增加外阴影让层次分明，内阴影增加金属感 */
+  box-shadow: 0 50px 100px rgba(0,0,0,0.9), 
+              inset 0 1px 1px var(--border-glow);
+  position: relative;
+  border: 1px solid rgba(255,255,255,0.03); /* 极细的外边框 */
 }
-.player{width:640px;max-width:100%;display:flex;gap:14px;align-items:flex-start}
-.visual{
-  width:120px;height:120px;border-radius:10px;
-  background:linear-gradient(135deg,#111,#1a1a1a);
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+
+/* 顶部信息 */
+.top-meta {
+  display: flex; justify-content: space-between;
+  font-size: 10px; font-weight: 700; letter-spacing: 2px;
+  color: var(--text-muted); margin-bottom: 30px; text-transform: uppercase;
 }
-.visual .note{font-size:36px;color:var(--muted)}
-.info{flex:1;display:flex;flex-direction:column;gap:10px}
-.title{font-size:18px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.subtitle{font-size:13px;color:var(--muted)}
-.controls{display:flex;align-items:center;gap:10px}
-.btn{
-  display:inline-grid;place-items:center;width:48px;height:48px;
-  border-radius:10px;background:transparent;border:1px solid rgba(255,255,255,.04);
-  cursor:pointer;color:var(--accent);font-size:16px
+
+/* 核心视窗：电平脉冲动画 */
+.display-unit {
+  padding: 10px 0 35px;
+  text-align: center;
 }
-.progress-wrap{
-  height:8px;background:rgba(255,255,255,.03);border-radius:8px;overflow:hidden;
-  cursor:pointer;margin-top:6px
+.visual-bars {
+  display: flex; justify-content: center; gap: 5px; height: 24px; margin-bottom: 24px; align-items: flex-end;
 }
-.progress{height:100%;width:0;background:linear-gradient(90deg,#fff,#dcdcdc)}
-.meta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:8px}
-.list{width:300px;max-height:420px;overflow:auto;padding:10px}
-.song{
-  padding:10px 12px;border-radius:8px;margin-bottom:8px;cursor:pointer;
-  color:var(--muted);display:flex;justify-content:space-between;align-items:center
+.bar { width: 3px; background: var(--accent-white); border-radius: 1px; height: 4px; opacity: 0.8; }
+.playing .bar { animation: pulse 0.7s infinite ease-in-out; }
+.bar:nth-child(2) { animation-delay: 0.15s; }
+.bar:nth-child(3) { animation-delay: 0.3s; }
+@keyframes pulse { 0%, 100% { height: 4px; opacity: 0.3; } 50% { height: 24px; opacity: 1; } }
+
+.title { 
+  font-size: 26px; font-weight: 700; margin: 0; letter-spacing: -1px; 
+  color: var(--text-main); text-shadow: 0 2px 10px rgba(0,0,0,0.5);
 }
-.song:hover{background:var(--glass)}
-.song.active{
-  background:linear-gradient(90deg,rgba(255,255,255,.03),rgba(255,255,255,.01));
-  color:var(--accent);font-weight:600
+.artist { 
+  font-size: 14px; color: var(--text-muted); margin-top: 10px; font-weight: 400;
 }
-.small{font-size:12px;color:var(--muted)}
-@media (max-width:720px){
-  .wrap{flex-direction:column}
-  .list{width:100%}
-  .player{width:100%}
+
+/* 进度控制 */
+.scrubber { margin: 30px 0; cursor: pointer; padding: 10px 0; }
+.rail { height: 4px; background: #1a1a1c; position: relative; border-radius: 2px; }
+.fill { height: 100%; width: 0%; background: var(--accent-white); border-radius: 2px; position: relative; box-shadow: 0 0 10px rgba(255,255,255,0.2); }
+.fill::after {
+  content: ""; position: absolute; right: -7px; top: -5px;
+  width: 14px; height: 14px; background: #fff; border-radius: 50%;
+  box-shadow: 0 0 15px rgba(255,255,255,0.5); transform: scale(1); /* 常驻滑块提升易用性 */
 }
-/* 呼吸动画（可删） */
-@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.04)}100%{transform:scale(1)}}
-.pulse{animation:pulse 1.6s infinite ease-in-out}
+
+.time-row { 
+  display: flex; justify-content: space-between; 
+  font-size: 11px; font-weight: 600; color: var(--text-muted); 
+  margin-top: 14px; font-family: 'JetBrains Mono', monospace; 
+}
+
+/* 交互按钮 */
+.control-row { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 35px; }
+.btn {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  transition: 0.2s; font-size: 12px; font-weight: 800; padding: 12px;
+}
+.btn:hover { color: var(--text-main); }
+.btn-play {
+  width: 66px; height: 66px; background: var(--accent-white); color: #000;
+  border-radius: 50%; display: grid; place-items: center; font-size: 22px;
+  box-shadow: 0 15px 30px rgba(0,0,0,0.4); border: none; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.btn-play:active { transform: scale(0.92); }
+
+/* 列表区及自定义滚动条 */
+.list-area {
+  height: 130px; overflow-y: auto; position: relative;
+  border-top: 1px solid var(--line); padding-top: 10px;
+  mask-image: linear-gradient(to bottom, transparent, #000 10%, #000 90%, transparent);
+}
+.list-item {
+  padding: 14px 10px; font-size: 13px; color: var(--text-muted);
+  display: flex; justify-content: space-between; cursor: pointer; border-radius: 12px;
+  transition: 0.2s;
+}
+.list-item:hover { color: var(--text-main); background: rgba(255,255,255,0.03); }
+.list-item.active { color: var(--text-main); font-weight: 700; background: rgba(255,255,255,0.05); }
+
+/* 自定义滚动条修正 - 确保可见度 */
+.list-area::-webkit-scrollbar { width: 4px; }
+.list-area::-webkit-scrollbar-track { background: transparent; }
+.list-area::-webkit-scrollbar-thumb { 
+  background: rgba(255, 255, 255, 0.2); /* 提高可见度 */
+  border-radius: 10px; 
+}
+.list-area::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
+
+/* 响应式 */
+@media (max-width: 400px) { .player-wrap { width: 92vw; padding: 25px; } }
 </style>
 </head>
 <body>
-<main class="wrap">
-  <!-- 播放器 -->
-  <section class="card player" aria-label="音乐播放器">
-    <div class="visual" id="visual"><div class="note">♪</div></div>
-    <div class="info">
-      <div>
-        <div id="title" class="title">未选择</div>
-        <div id="subtitle" class="subtitle"></div>
-      </div>
 
-      <video id="media" preload="metadata" style="display:none"></video>
+<div class="player-wrap" id="mainContainer">
+  <video id="audio" style="display:none"></video>
 
-      <div class="controls">
-        <button id="prev" class="btn" title="上一首">⟲</button>
-        <button id="play" class="btn" title="播放 / 暂停">▶</button>
-        <button id="next" class="btn" title="下一首">⟲</button>
-        <div style="flex:1"></div>
-        <button id="shuffle" class="btn" title="随机">🔀</button>
-      </div>
+  <div class="top-meta">
+    <span>Reference Mode</span>
+    <span id="bitrate">PCM 24-bit</span>
+  </div>
 
-      <div class="progress-wrap" id="progressWrap"><div id="progress" class="progress"></div></div>
-
-      <div class="meta">
-        <div id="time" class="small">0:00 / 0:00</div>
-        <div class="small">文件：<span id="count">0</span></div>
-      </div>
+  <div class="display-unit">
+    <div class="visual-bars">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
     </div>
-  </section>
+    <div class="info-block">
+      <div class="title" id="title">Standby</div>
+      <div class="artist" id="artist">System Online</div>
+    </div>
+  </div>
 
-  <!-- 播放列表 -->
-  <aside class="card list" id="listCard" aria-label="播放列表">
-    <div id="listInner" class="small"></div>
-  </aside>
-</main>
+  <div class="scrubber" id="scrubber">
+    <div class="rail"><div class="fill" id="fill"></div></div>
+    <div class="time-row">
+      <span id="cur">00:00</span>
+      <span id="dur">00:00</span>
+    </div>
+  </div>
+
+  <div class="control-row">
+    <button class="btn" id="shuf">SHUF</button>
+    <button class="btn" id="prev">⏮</button>
+    <button class="btn-play" id="play">▶</button>
+    <button class="btn" id="next">⏭</button>
+    <button class="btn" id="loop">LOOP</button>
+  </div>
+
+  <div class="list-area" id="list">
+    <!-- 动态生成 -->
+  </div>
+</div>
 
 <script>
-/* ---------- 歌曲列表（请确保文件在同目录或子目录） ---------- */
-const playlist = [
-  "1.mp3",
-  "track02.wav",
-  "track03.flac"
-].map(name => ({
-  name,
-  url: './' + encodeURIComponent(name.replace(/^\/+/, '')) // 防止出现 //1.mp3
+const songs = [
+  "1.mp3", "Void_Walker.wav", "Noir_Etude.flac", "Obsidian.mp3"
+].map(f => ({
+  name: f.replace(/\.[^/.]+$/, "").replace(/_/g, " "),
+  ext: f.split('.').pop().toUpperCase(),
+  url: './' + encodeURIComponent(f)
 }));
 
-/* ---------- 常量 & DOM ---------- */
-const media        = document.getElementById('media');
-const playBtn      = document.getElementById('play');
-const prevBtn      = document.getElementById('prev');
-const nextBtn      = document.getElementById('next');
-const shuffleBtn   = document.getElementById('shuffle');
-const listInner    = document.getElementById('listInner');
-const titleEl      = document.getElementById('title');
-const subtitleEl   = document.getElementById('subtitle');
-const progress     = document.getElementById('progress');
-const progressWrap = document.getElementById('progressWrap');
-const countEl      = document.getElementById('count');
-const timeEl       = document.getElementById('time');
+const audio = document.getElementById('audio');
+const playBtn = document.getElementById('play');
+const mainContainer = document.getElementById('mainContainer');
+const fill = document.getElementById('fill');
+const scrubber = document.getElementById('scrubber');
+const list = document.getElementById('list');
 
-/* ---------- 状态 ---------- */
-let idx = 0;
-let isPlaying = false;
-let shuffled = false;
+let currentIdx = 0;
 
-/* ---------- 工具 ---------- */
-function fmt(sec){
-  if(!isFinite(sec)) return '0:00';
-  sec = Math.floor(sec);
-  const m = Math.floor(sec/60);
-  const s = String(sec%60).padStart(2,'0');
-  return `${m}:${s}`;
+function formatTime(s) {
+  if (isNaN(s)) return '00:00';
+  const m = Math.floor(s/60);
+  const sec = Math.floor(s%60);
+  return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
 }
 
-/* ---------- UI 渲染 ---------- */
-function renderList(){
-  listInner.innerHTML = '';
-  playlist.forEach((t,i)=>{
-    const el = document.createElement('div');
-    el.className = 'song' + (i===idx ? ' active' : '');
-    el.textContent = t.name;
-    el.addEventListener('click',()=>{ idx=i; loadTrack(i); });
-    listInner.appendChild(el);
-  });
-  countEl.textContent = playlist.length;
-  subtitleEl.textContent = `${playlist.length} 首（写在代码里）`;
+function renderList() {
+  list.innerHTML = songs.map((s, i) => `
+    <div class="list-item ${i === currentIdx ? 'active' : ''}" onclick="playTrack(${i})">
+      <span>${s.name}</span>
+      <span style="opacity:0.4; font-size:9px; border:1px solid; padding:0 3px; border-radius:2px">${s.ext}</span>
+    </div>
+  `).join('');
 }
 
-/* ---------- 加载 & 播放 ---------- */
-function loadTrack(i){
-  if(i<0 || i>=playlist.length) return;
-  idx = i;
-  const t = playlist[i];
-  media.src = t.url;
-  media.load();                 // **不自动播放**，只准备好资源
-  titleEl.textContent = t.name;
-  document.querySelectorAll('.song')
-          .forEach((el,ii)=>el.classList.toggle('active', ii===i));
-}
-
-/* 播放（仅在用户交互后调用） */
-function attemptPlay(){
-  if(!media.src) return;
-  media.muted = false;          // 确保不是静音状态
-  media.play()
-    .then(()=>{
-      isPlaying = true;
-      playBtn.textContent = '⏸';
-      document.getElementById('visual').classList.add('pulse');
-    })
-    .catch(err=>{
-      console.error('play failed →', err);
-      // 自动播放被拦截时的典型错误名
-      if(err.name === 'NotAllowedError' || err.name === 'AbortError'){
-        alert('浏览器阻止了自动播放，请先点击播放按钮。');
-      }else{
-        alert('播放被阻止或文件不受支持（查看 console）。');
-      }
-      playBtn.textContent = '▶';
-    });
-}
-function pause(){
-  media.pause();
-  isPlaying = false;
-  playBtn.textContent = '▶';
-  document.getElementById('visual').classList.remove('pulse');
-}
-function next(){
-  if(!playlist.length) return;
-  idx = shuffled ? Math.floor(Math.random()*playlist.length) : (idx+1)%playlist.length;
-  loadTrack(idx);
-  attemptPlay();
-}
-function prev(){
-  if(!playlist.length) return;
-  idx = shuffled ? Math.floor(Math.random()*playlist.length) : (idx-1+playlist.length)%playlist.length;
-  loadTrack(idx);
-  attemptPlay();
-}
-
-/* ---------- UI 交互 ---------- */
-playBtn.addEventListener('click',()=> isPlaying ? pause() : attemptPlay());
-nextBtn.addEventListener('click',next);
-prevBtn.addEventListener('click',prev);
-shuffleBtn.addEventListener('click',()=>{
-  shuffled = !shuffled;
-  shuffleBtn.style.borderColor = shuffled ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.04)';
-});
-
-/* ---------- 进度条 & 结束 ---------- */
-media.addEventListener('timeupdate',()=>{
-  if(!media.duration) return;
-  const pct = (media.currentTime/media.duration)*100;
-  progress.style.width = pct + '%';
-  timeEl.textContent = `${fmt(media.currentTime)} / ${fmt(media.duration)}`;
-});
-media.addEventListener('ended',next);
-progressWrap.addEventListener('click',e=>{
-  const rect = progressWrap.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  const pct = clickX / rect.width;
-  if(media.duration) media.currentTime = pct * media.duration;
-});
-
-/* ---------- 初始化 ---------- */
-if(playlist.length===0){
-  listInner.innerHTML = '<div class="small">(未在代码中定义任何可播放的文件)</div>';
-  subtitleEl.textContent = '';
-}else{
+function playTrack(i) {
+  currentIdx = i;
+  audio.src = songs[currentIdx].url;
+  document.getElementById('title').textContent = songs[currentIdx].name;
+  document.getElementById('artist').textContent = `Mastering / ${songs[currentIdx].ext} Source`;
+  audio.play();
+  playBtn.textContent = '||';
+  mainContainer.classList.add('playing');
   renderList();
-  loadTrack(0);   // 只加载，不自动播放，避免自动播放拦截
 }
+
+playBtn.onclick = () => {
+  if (audio.paused) {
+    audio.play(); playBtn.textContent = '||'; mainContainer.classList.add('playing');
+  } else {
+    audio.pause(); playBtn.textContent = '▶'; mainContainer.classList.remove('playing');
+  }
+};
+
+document.getElementById('next').onclick = () => playTrack((currentIdx + 1) % songs.length);
+document.getElementById('prev').onclick = () => playTrack((currentIdx - 1 + songs.length) % songs.length);
+
+audio.ontimeupdate = () => {
+  const p = (audio.currentTime / audio.duration) * 100 || 0;
+  fill.style.width = p + '%';
+  document.getElementById('cur').textContent = formatTime(audio.currentTime);
+  document.getElementById('dur').textContent = formatTime(audio.duration);
+};
+
+audio.onended = () => document.getElementById('next').click();
+
+scrubber.onclick = (e) => {
+  const rect = scrubber.querySelector('.rail').getBoundingClientRect();
+  audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+};
+
+// Start
+renderList();
+audio.src = songs[0].url;
+document.getElementById('title').textContent = songs[0].name;
 </script>
 </body>
 </html>
