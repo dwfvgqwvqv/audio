@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub Pages - Black Hole Audio Visualizer</title>
+    <title>Black Hole Audio Visualizer - Smooth Flow Edition</title>
     <style>
         body, html { 
             height: 100%; 
@@ -244,8 +244,6 @@
 
         const audio = new Audio();
         audio.src = playlist[currentTrackIndex];
-        
-        // 关键设置：GitHub Pages 上必须声明匿名跨域，否则浏览器不抛出频谱数据
         audio.crossOrigin = "anonymous"; 
 
         let audioCtx, analyser, source, dataArray;
@@ -260,11 +258,10 @@
 
         function initAudioContext() {
             if (isAudioContextInitialized) return;
-            
             try {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 256; // 适中采样，兼顾低延迟与性能
+                analyser.fftSize = 256; 
                 
                 const bufferLength = analyser.frequencyBinCount;
                 dataArray = new Uint8Array(bufferLength);
@@ -276,32 +273,29 @@
                 isAudioContextInitialized = true;
                 console.log("Web Audio API 真实频谱流加载成功。");
             } catch(e) {
-                console.error("音频流被拦截。请检查是否在GitHub Pages(https)环境下运行:", e);
+                console.error("音频流加载异常:", e);
             }
         }
 
-        // 非对称阻尼缓动：对乐曲节奏的暴增响应极快，衰减时顺滑滑行
+        // 非对称阻尼缓动
         function smoothLerp(current, target, upSpeed = 0.4, downSpeed = 0.08) {
             let diff = target - current;
             return current + diff * (diff > 0 ? upSpeed : downSpeed);
         }
 
         function updateAnalyserData() {
-            // 未播放或未初始化时，物理能量往 0 缓缓衰减
             if (audio.paused || !isAudioContextInitialized || !dataArray) {
-                audioFactors.bass = smoothLerp(audioFactors.bass, 0, 0.1, 0.05);
-                audioFactors.mid = smoothLerp(audioFactors.mid, 0, 0.1, 0.05);
-                audioFactors.treble = smoothLerp(audioFactors.treble, 0, 0.1, 0.05);
+                audioFactors.bass = smoothLerp(audioFactors.bass, 0, 0.08, 0.04);
+                audioFactors.mid = smoothLerp(audioFactors.mid, 0, 0.08, 0.04);
+                audioFactors.treble = smoothLerp(audioFactors.treble, 0, 0.08, 0.04);
                 return;
             }
 
-            // 提取真实的频谱字节数组
             analyser.getByteFrequencyData(dataArray);
             
             let len = dataArray.length;
             let bassSum = 0, midSum = 0, trebleSum = 0;
 
-            // 严格按频域切片数据：前20%为低频（鼓点），中50%为中频（人声），后30%为高频
             for (let i = 0; i < len; i++) {
                 if (i < len * 0.2) {
                     bassSum += dataArray[i];
@@ -312,18 +306,17 @@
                 }
             }
 
-            // 归一化并大幅提升控制乘数 (例如 * 3.8)，确保黑洞粒子产生肉眼可见的暴烈拉伸
+            // 物理映射基数
             let targetBass = (bassSum / (len * 0.2 * 255)) * 3.8;
             let targetMid = (midSum / (len * 0.5 * 255)) * 3.0;
             let targetTreble = (trebleSum / (len * 0.3 * 255)) * 2.5;
 
-            // 注入阻尼系统
             audioFactors.bass = smoothLerp(audioFactors.bass, targetBass, 0.45, 0.08);
             audioFactors.mid = smoothLerp(audioFactors.mid, targetMid, 0.35, 0.07);
             audioFactors.treble = smoothLerp(audioFactors.treble, targetTreble, 0.30, 0.06);
         }
 
-        // ==================== 智能能量响应黑洞粒子系统 ====================
+        // ==================== 智能天体能量响应黑洞粒子系统 ====================
         function blackhole(element) {
             const container = document.querySelector(element);
             
@@ -368,15 +361,14 @@
 
                     this.id = stars.length; 
                     
-                    // 基于宇宙天体吸积盘分布判断星环归属
                     if (this.orbital < maxorbit * 0.35) {
-                        this.freqType = 'bass';    // 内圈粒子：听从重低音
+                        this.freqType = 'bass';    
                         this.colorStr = '255, 255, 255'; 
                     } else if (this.orbital < maxorbit * 0.75) {
-                        this.freqType = 'mid';     // 中圈粒子：听从中频人声
+                        this.freqType = 'mid';     
                         this.colorStr = '235, 240, 255';
                     } else {
-                        this.freqType = 'treble';  // 外圈粒子：听从高频乐器
+                        this.freqType = 'treble';  
                         this.colorStr = '200, 215, 255';
                     }
 
@@ -388,46 +380,56 @@
                 }
 
                 draw() {
-                    let dynamicVelocity = this.baseSpeed;
+                    // ==================== 【常态：极致的缓缓流淌】 ====================
+                    // 大幅调低平时基础速度，粒子没有强音乐时极其安静
+                    let dynamicVelocity = this.baseSpeed * 0.15; 
                     let shake = 0;
 
-                    // 基础音频频率控制映射
+                    // 1. 常态下的频谱小幅温柔映射
                     if (this.freqType === 'bass') {
-                        dynamicVelocity *= (1 + audioFactors.bass * 15.0); 
+                        dynamicVelocity += audioFactors.bass * 0.12; 
                     } else if (this.freqType === 'mid') {
-                        dynamicVelocity *= (1 + audioFactors.mid * 12.0);  
+                        dynamicVelocity += audioFactors.mid * 0.10;  
                     } else if (this.freqType === 'treble') {
-                        dynamicVelocity *= (1 + audioFactors.treble * 8.0);
-                        shake = (Math.random() - 0.5) * audioFactors.treble * 7.5; // 高音震颤
+                        dynamicVelocity += audioFactors.treble * 0.08;
+                        shake = (Math.random() - 0.5) * audioFactors.treble * 4.0; 
                     }
 
-                    // 【核心逻辑：按低音能量实时判断“时空收缩”】
-                    // 当重低音（Bass）爆表超过 1.6 阈值时，直接触发无缝圆圈视觉
-                    if (audioFactors.bass > 1.6) {
-                        // 1. 旋转角速度瞬间拉满，使前后两帧的线段在一帧内直接闭合融合成“发光圆圈”
-                        dynamicVelocity += 4.5; 
-                        // 2. 粒子轨道半径向内迅速收缩塌陷，融汇成质感扎实的超时空圆环
-                        let targetY = this.yOrigin * 0.45; 
-                        this.y = smoothLerp(this.y, targetY, 0.3, 0.1);
-                    } else {
-                        // 3. 低音减弱时，丝滑散开恢复到原有的宇宙星环吸积盘形态
-                        this.y = smoothLerp(this.y, this.yOrigin + shake, 0.1, 0.15);
+                    // ==================== 【核心：速度冲破临界，蓄力变圆】 ====================
+                    // 设定动态阈值，只有速度真正被音乐推上去了，才会引发向心坍缩
+                    let speedThreshold = 0.15;
+                    let collapseFactor = 0;
+
+                    if (dynamicVelocity > speedThreshold) {
+                        // 映射超过临界点的值，锁住安全上限因子（/ 2.5），不让速度无限狂飙
+                        collapseFactor = Math.min(1, (dynamicVelocity - speedThreshold) / 2.5);
+                        
+                        // 关键：冲破临界后赋予精准的“首尾衔接加成”，压在安全闭合弧度以内，拉出纯净视界圆圈
+                        dynamicVelocity += collapseFactor * 2.6; 
                     }
+
+                    // 2. 半径收缩：根据成圆系数(collapseFactor)，丝滑由四周抽向内圈
+                    let targetRadius = this.yOrigin * (1 - collapseFactor * 0.52);
+                    
+                    // 阻尼缓动，保障扩散与收缩的拉伸物理感
+                    this.y = smoothLerp(this.y, targetRadius + (1 - collapseFactor) * shake, 0.15, 0.1);
+                    // ======================================================================
 
                     this.currentRotation += dynamicVelocity * 0.5;
 
                     context.save();
                     
-                    // 基于频域能量进行无级闪烁调光
                     let alpha = (1 - ((this.orbital) / 270));
-                    if (this.freqType === 'bass') alpha += audioFactors.bass * 0.3;
-                    if (this.freqType === 'treble') alpha += audioFactors.treble * 0.4;
+                    if (this.freqType === 'bass') alpha += audioFactors.bass * 0.2;
                     
-                    context.fillStyle = `rgba(${this.colorStr}, ${Math.min(1, Math.max(0.12, alpha))})`;
+                    // 随着粒子凝聚成圈，光带亮度自动增益充能，增强视觉厚度
+                    let finalAlpha = Math.min(0.9, Math.max(0.08, alpha)) + (collapseFactor * 0.35);
+                    context.fillStyle = `rgba(${this.colorStr}, ${finalAlpha})`;
                     context.strokeStyle = context.fillStyle;
-                    context.lineWidth = this.freqType === 'bass' ? 1.5 : 1.0; 
                     
-                    // 矩阵前置点连线，拉出具有天体拉伸质感的超时空光带长尾
+                    // 成圆状态下稍微加粗线段，使高发光圈更连贯
+                    context.lineWidth = (this.freqType === 'bass' && collapseFactor > 0.6) ? 1.8 : 1.0; 
+                    
                     const oldPos = rotate(centerx, centery, this.prevX, this.prevY, this.prevR - this.currentRotation);
                     
                     context.translate(centerx, centery);
@@ -446,7 +448,6 @@
                 }
             }
 
-            // 视口高分屏自适应
             window.addEventListener('resize', () => {
                 cw = window.innerWidth;
                 ch = window.innerHeight;
@@ -461,18 +462,17 @@
                 });
             });
 
-            // ENTER大按钮点击联动：不再由定时状态机接管，仅激活音频上下文并直接开播
             const centerHover = document.querySelector('.centerHover');
             centerHover.addEventListener('click', function(e) {
                 initAudioContext();
-                this.classList.add('open'); // 优雅离场
+                this.classList.add('open');
                 playTrack();
             });
 
             function loop() {
                 updateAnalyserData();
 
-                // 核心黑洞视界长尾残留光效（调低至0.16，使融合成发光圈时边缘更细腻顺滑）
+                // 保持 0.16 细腻尾迹
                 context.fillStyle = 'rgba(6,6,8,0.16)'; 
                 context.fillRect(0, 0, cw, ch);
 
@@ -514,14 +514,13 @@
 
         function playTrack() {
             initAudioContext(); 
-            // 恢复因浏览器安全策略引发的挂起状态
             if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
             audio.play().then(() => {
                 updateUI();
             }).catch(err => {
-                console.log("等待用户交互以触发音频管线机制: ", err);
+                console.log("音频管线等待交互: ", err);
             });
         }
 
@@ -562,7 +561,7 @@
         btnPlay.addEventListener('click', togglePlay);
         btnNext.addEventListener('click', nextTrack);
         btnPrev.addEventListener('click', prevTrack);
-        
+
         btnShuffle.addEventListener('click', (e) => {
             e.stopPropagation();
             isShuffle = !isShuffle;
