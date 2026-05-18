@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D 星空穿梭音频控制</title>
+  <title>动态差值扩张时空引擎</title>
   <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/thegoodmonolith">
   <style>
     @font-face {
@@ -18,8 +18,6 @@
       --color-bg: #111111;
       --color-text: #ffffff;
       --font-title: "PP Neue Montreal", sans-serif;
-      --font-size-h1: 3rem;
-      --letter-spacing-title: -0.03em;
     }
 
     *, *:before, *:after {
@@ -46,7 +44,7 @@
       height: 100%;
       background-image: url("https://img.freepik.com/premium-photo/white-dust-scratches-black-background_279525-2.jpg?w=640");
       background-repeat: repeat;
-      opacity: 0.05;
+      opacity: 0.04;
       mix-blend-mode: screen;
       pointer-events: none;
       z-index: 1;
@@ -69,9 +67,6 @@
       width: 100%;
       height: 100%;
       position: relative;
-      display: flex;
-      justify-content: center;
-      align-items: center;
     }
 
     canvas#space {
@@ -81,6 +76,7 @@
       width: 100%;
       height: 100%;
       display: block;
+      will-change: transform;
     }
 
     .click-to-play {
@@ -90,13 +86,17 @@
       transform: translate(-50%, -50%);
       color: var(--color-text);
       font-family: var(--font-title);
-      font-size: 1rem;
-      letter-spacing: 0.1em;
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
       z-index: 30;
       pointer-events: none;
       text-transform: uppercase;
-      opacity: 0.8;
-      transition: opacity 0.5s ease;
+      opacity: 0.9;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 16px 32px;
+      background: rgba(17,17,17,0.85);
+      backdrop-filter: blur(8px);
+      transition: opacity 0.6s ease;
     }
 
     .click-to-play.hidden {
@@ -106,7 +106,7 @@
 </head>
 <body>
 
-  <div class="click-to-play" id="clickHint">Click anywhere to play 1.mp3</div>
+  <div class="click-to-play" id="clickHint">点击屏幕 体验大厂级全动态差值穿梭</div>
 
   <div class="webgl-section" id="webglSection">
     <div class="canvas-container" id="canvasContainer">
@@ -115,6 +115,104 @@
   </div>
 
   <script>
+    // ===================================================
+    // 大厂核心：动态差值扩张与能量归一化算法
+    // ===================================================
+    class AudioExpansionEngine {
+      constructor() {
+        this.audioCtx = null;
+        this.analyser = null;
+        this.dataArray = null;
+        this.isReady = false;
+
+        this.warpSpeed = 0;
+
+        // 动态 Min-Max 追踪窗口（用于强行拉大差值）
+        this.historyLength = 180; // 追踪过去约 3 秒的数据
+        this.bassHistory = [];
+        
+        // 智能环境基准线
+        this.dynamicMin = 40;     
+        this.dynamicMax = 160;    
+
+        this.shakeIntensity = 0;
+        this.isBeatDrop = false;
+      }
+
+      init(audioElement) {
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        this.analyser = this.audioCtx.createAnalyser();
+        
+        this.analyser.fftSize = 256; 
+        this.analyser.smoothingTimeConstant = 0.15; // 极速响应，拒绝内部粘滞
+
+        const source = this.audioCtx.createMediaElementSource(audioElement);
+        source.connect(this.analyser);
+        this.analyser.connect(this.audioCtx.destination);
+
+        this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+        this.isReady = true;
+      }
+
+      update() {
+        if (!this.isReady) return 0;
+
+        this.analyser.getByteFrequencyData(this.dataArray);
+
+        // 1. 抓取核心大鼓重低音频段
+        let bassSum = 0;
+        const bins = 4;
+        for (let i = 0; i < bins; i++) {
+          bassSum += this.dataArray[i];
+        }
+        let currentBass = bassSum / bins;
+
+        // 2. 动态自适应算法：实时计算当前歌曲近3秒内的绝对高潮点和绝对静音点
+        this.bassHistory.push(currentBass);
+        if (this.bassHistory.length > this.historyLength) this.bassHistory.shift();
+
+        const calculatedMin = Math.min(...this.bassHistory);
+        const calculatedMax = Math.max(...this.bassHistory);
+
+        // 使用缓动平滑基准线，防止遇到突发噪音时画面崩溃
+        this.dynamicMin = this.dynamicMin * 0.95 + Math.max(calculatedMin, 30) * 0.05;
+        this.dynamicMax = this.dynamicMax * 0.95 + Math.max(calculatedMax, 100) * 0.05;
+
+        // 3. 核心：归一化处理（将窄小的差值强行放大到 0.0 ~ 1.0 满额解析度）
+        let normalizedBass = 0;
+        if (this.dynamicMax > this.dynamicMin) {
+          normalizedBass = (currentBass - this.dynamicMin) / (this.dynamicMax - this.dynamicMin);
+          normalizedBass = Math.max(0, Math.min(1, normalizedBass)); // 裁切边界
+        }
+
+        // 4. 大厂秘籍：三阶功率暴涨公式（Exponential Scaling）
+        // 通过指数大幅度压低轻拍速度，疯狂抬高重拍速度，彻底拉开差值！
+        let targetSpeed = Math.pow(normalizedBass, 3.0); 
+
+        // 5. 非对称物理阻尼（加速瞬间完成，减速优雅滑行）
+        if (targetSpeed > this.warpSpeed) {
+          // 瞬间提速：几乎零延迟，完美对齐鼓点的物理打击感
+          this.warpSpeed += (targetSpeed - this.warpSpeed) * 0.45;
+        } else {
+          // 优雅减速：模拟高级太空阻尼，顺滑落差
+          this.warpSpeed += (targetSpeed - this.warpSpeed) * 0.06;
+        }
+
+        // 6. 衍生重拍震颤反馈
+        this.isBeatDrop = false;
+        if (this.warpSpeed > 0.65 && targetSpeed > 0.8) {
+          this.shakeIntensity = (this.warpSpeed - 0.65) * 16;
+          this.isBeatDrop = true;
+        }
+        this.shakeIntensity *= 0.82;
+
+        return this.warpSpeed;
+      }
+    }
+
+    // ===================================================
+    // Canvas 高性能粒子渲染
+    // ===================================================
     const canvas = document.getElementById("space");
     const ctx = canvas.getContext("2d");
     const clickHint = document.getElementById("clickHint");
@@ -126,58 +224,49 @@
     const focalLength = canvas.width * 2;
     let centerX = canvas.width / 2;
     let centerY = canvas.height / 2;
-    const baseTrailLength = 2;
-    const maxTrailLength = 30;
+    const baseTrailLength = 1.5; // 压低静止时的尾迹
+    const maxTrailLength = 40;   // 放大高潮时的冲刺感
 
     let stars = [];
-    let warpSpeed = 0;
-
-    let audioCtx;
-    let analyser;
-    let dataArray;
     let audioStarted = false;
+    let currentWarp = 0;
+
+    const expansionEngine = new AudioExpansionEngine();
 
     function initializeStars() {
       stars = [];
       for (let i = 0; i < numStars; i++) {
+        const isCyan = Math.random() > 0.82;
         stars.push({
           x: Math.random() * canvas.width,
           y: Math.random() * canvas.height,
           z: Math.random() * canvas.width,
-          o: 0.5 + Math.random() * 0.5,
+          o: 0.3 + Math.random() * 0.7,
+          color: isCyan ? "rgba(145, 240, 255, " : "rgba(255, 255, 255, ",
           trail: []
         });
       }
     }
 
-    function initAudio() {
+    function startEngine() {
       if (audioStarted) return;
       audioStarted = true;
       clickHint.classList.add("hidden");
-
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
 
       const audio = new Audio();
       audio.src = "1.mp3";
       audio.crossOrigin = "anonymous";
       audio.loop = true;
 
-      const source = audioCtx.createMediaElementSource(audio);
-      source.connect(analyser);
-      analyser.connect(audioCtx.destination);
-
-      const bufferLength = analyser.frequencyBinCount;
-      dataArray = new Uint8Array(bufferLength);
-
+      expansionEngine.init(audio);
       audio.play();
     }
 
     function moveStars() {
+      // 速度区间扩充：平时底速只有 0.8，爆发时狂飙到 95，差值拉满
+      const speed = 0.8 + currentWarp * 94.2; 
       for (let i = 0; i < stars.length; i++) {
         const star = stars[i];
-        const speed = 1 + warpSpeed * 50;
         star.z -= speed;
         if (star.z < 1) {
           star.z = canvas.width;
@@ -196,11 +285,23 @@
         centerY = canvas.height / 2;
       }
 
-      const trailLength = Math.floor(baseTrailLength + warpSpeed * (maxTrailLength - baseTrailLength));
-      const clearAlpha = 1 - warpSpeed * 0.8;
+      // 动态残影与尾迹长度控制
+      const trailLength = Math.floor(baseTrailLength + currentWarp * (maxTrailLength - baseTrailLength));
+      const clearAlpha = expansionEngine.isBeatDrop ? 0.25 : (1 - currentWarp * 0.92);
+      
       ctx.fillStyle = `rgba(17,17,17,${clearAlpha})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      // 重拍屏幕震颤反馈
+      if (expansionEngine.shakeIntensity > 0.2) {
+        const sx = (Math.random() - 0.5) * expansionEngine.shakeIntensity;
+        const sy = (Math.random() - 0.5) * expansionEngine.shakeIntensity;
+        canvas.style.transform = `translate(${sx}px, ${sy}px)`;
+      } else {
+        canvas.style.transform = "none";
+      }
+
+      // 绘制流星线段
       for (let i = 0; i < stars.length; i++) {
         const star = stars[i];
         const px = (star.x - centerX) * (focalLength / star.z) + centerX;
@@ -217,36 +318,24 @@
           for (let j = 1; j < star.trail.length; j++) {
             ctx.lineTo(star.trail[j].x, star.trail[j].y);
           }
-          ctx.strokeStyle = `rgba(209,255,255,${star.o})`;
-          ctx.lineWidth = 1;
+          
+          // 在极高速度下激发出绚丽的色彩
+          ctx.strokeStyle = expansionEngine.isBeatDrop ? star.color + `${star.o})` : `rgba(255,255,255,${star.o * 0.6})`;
+          ctx.lineWidth = expansionEngine.isBeatDrop ? 1.5 : 1;
           ctx.stroke();
         }
 
-        ctx.fillStyle = `rgba(209,255,255,${star.o})`;
+        ctx.fillStyle = `rgba(255,255,255,${star.o})`;
         ctx.fillRect(px, py, 1, 1);
       }
     }
 
-    function updateAudioWarp() {
-      if (!audioStarted || !analyser) return;
-
-      analyser.getByteFrequencyData(dataArray);
-
-      let lowFreqSum = 0;
-      const energyBins = Math.floor(dataArray.length * 0.3); 
-      for (let i = 0; i < energyBins; i++) {
-        lowFreqSum += dataArray[i];
-      }
-      const averageVolume = lowFreqSum / energyBins;
-
-      const targetWarpSpeed = Math.min(averageVolume / 180, 1);
-      
-      warpSpeed += (targetWarpSpeed - warpSpeed) * 0.15;
-    }
-
     function animate() {
       requestAnimationFrame(animate);
-      updateAudioWarp();
+      
+      // 从自适应扩张引擎获取经过完美差值拉伸后的速度
+      currentWarp = expansionEngine.update();
+      
       moveStars();
       drawStars();
     }
@@ -254,7 +343,7 @@
     initializeStars();
     animate();
 
-    window.addEventListener("click", initAudio);
+    window.addEventListener("click", startEngine);
 
     window.addEventListener("resize", () => {
       canvas.width = window.innerWidth;
