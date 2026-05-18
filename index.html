@@ -1,356 +1,595 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>动态差值扩张时空引擎</title>
-  <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/thegoodmonolith">
-  <style>
-    @font-face {
-      font-family: "PP Neue Montreal";
-      src: url("https://fonts.cdnfonts.com/s/64587/PPNeueMontreal-Medium.woff2") format("woff2");
-      font-weight: 500;
-      font-style: normal;
-      font-display: swap;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Pages - Black Hole Audio Visualizer</title>
+    <style>
+        body, html { 
+            height: 100%; 
+            margin: 0;
+            padding: 0;
+            background-color: #060608;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
 
-    :root {
-      --color-bg: #111111;
-      --color-text: #ffffff;
-      --font-title: "PP Neue Montreal", sans-serif;
-    }
+        /* ==================== 顶层全局 UI 图层 ==================== */
+        .ui-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999; 
+            pointer-events: none; 
+        }
 
-    *, *:before, *:after {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+        .audio-control-panel, .centerHover {
+            pointer-events: auto; 
+        }
 
-    body {
-      background-color: var(--color-bg);
-      color: var(--color-text);
-      overflow: hidden;
-      height: 100vh;
-      width: 100vw;
-      cursor: pointer;
-    }
+        /* ==================== 极简暗夜毛玻璃控制面板 ==================== */
+        .audio-control-panel {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 10px 22px;
+            background: rgba(10, 10, 14, 0.75); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            border-radius: 24px;
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+            user-select: none;
+            transition: all 400ms ease;
+        }
 
-    body::after {
-      content: "";
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-image: url("https://img.freepik.com/premium-photo/white-dust-scratches-black-background_279525-2.jpg?w=640");
-      background-repeat: repeat;
-      opacity: 0.04;
-      mix-blend-mode: screen;
-      pointer-events: none;
-      z-index: 1;
-    }
+        .audio-control-panel:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(15, 15, 20, 0.85);
+        }
 
-    .webgl-section {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 10;
-      overflow: hidden;
-    }
+        .track-info {
+            color: #ddd;
+            font-family: serif;
+            font-size: 13px;
+            letter-spacing: 1px;
+            border-right: 1px solid rgba(255, 255, 255, 0.15);
+            padding-right: 16px;
+            max-width: 130px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
-    .canvas-container {
-      width: 100%;
-      height: 100%;
-      position: relative;
-    }
+        .audio-btn {
+            background: none;
+            border: none;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: transform 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .audio-btn:hover {
+            transform: scale(1.2);
+        }
 
-    canvas#space {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
-      will-change: transform;
-    }
+        /* 纯 CSS 图标：播放 */
+        .icon-play {
+            width: 0; height: 0;
+            border-style: solid;
+            border-width: 6px 0 6px 11px;
+            border-color: transparent transparent transparent #bbb;
+            margin-left: 2px;
+            transition: border-color 300ms;
+        }
+        .audio-btn:hover .icon-play { border-left-color: #FFF; }
 
-    .click-to-play {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: var(--color-text);
-      font-family: var(--font-title);
-      font-size: 0.85rem;
-      letter-spacing: 0.2em;
-      z-index: 30;
-      pointer-events: none;
-      text-transform: uppercase;
-      opacity: 0.9;
-      border: 1px solid rgba(255,255,255,0.2);
-      padding: 16px 32px;
-      background: rgba(17,17,17,0.85);
-      backdrop-filter: blur(8px);
-      transition: opacity 0.6s ease;
-    }
+        /* 纯 CSS 图标：暂停 */
+        .icon-pause {
+            display: none; 
+            width: 10px; height: 12px;
+            justify-content: space-between;
+        }
+        .icon-pause::before, .icon-pause::after {
+            content: '';
+            width: 3px; height: 12px;
+            background-color: #bbb;
+            transition: background-color 300ms;
+        }
+        .audio-btn:hover .icon-pause::before, .audio-btn:hover .icon-pause::after { background-color: #FFF; }
 
-    .click-to-play.hidden {
-      opacity: 0;
-    }
-  </style>
+        .audio-btn.playing .icon-play { display: none; }
+        .audio-btn.playing .icon-pause { display: flex; }
+
+        /* 纯 CSS 图标：下一首 */
+        .icon-next { display: flex; align-items: center; }
+        .icon-next::before {
+            content: ''; width: 0; height: 0;
+            border-style: solid; border-width: 5px 0 5px 8px;
+            border-color: transparent transparent transparent #bbb;
+        }
+        .icon-next::after {
+            content: ''; width: 2px; height: 10px;
+            background-color: #bbb;
+        }
+        .audio-btn:hover .icon-next::before { border-left-color: #FFF; }
+        .audio-btn:hover .icon-next::after { background-color: #FFF; }
+
+        /* 纯 CSS 图标：上一首 */
+        .icon-prev { display: flex; align-items: center; }
+        .icon-prev::before {
+            content: ''; width: 2px; height: 10px;
+            background-color: #bbb;
+        }
+        .icon-prev::after {
+            content: ''; width: 0; height: 0;
+            border-style: solid; border-width: 5px 8px 5px 0;
+            border-color: transparent #bbb transparent transparent;
+        }
+        .audio-btn:hover .icon-prev::before { background-color: #FFF; }
+        .audio-btn:hover .icon-prev::after { border-right-color: #FFF; }
+
+        /* 纯 CSS 图标：模式文字 */
+        .icon-mode {
+            font-size: 9px;
+            font-weight: 600;
+            color: #555;
+            letter-spacing: 0.5px;
+            transition: color 300ms;
+        }
+        .audio-btn:hover .icon-mode { color: #FFF; }
+        .audio-btn.active .icon-mode { 
+            color: #ff7675; 
+            text-shadow: 0 0 10px rgba(255,118,117,0.6); 
+        }
+
+        /* ==================== 核心中心大按钮 ==================== */
+        .centerHover {
+            width: 255px;
+            height: 255px;
+            background-color: transparent;
+            border-radius: 50%;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            margin-top: -128px;
+            margin-left: -128px;
+            cursor: pointer;
+            line-height: 255px;
+            text-align: center;
+            transition: all 600ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .centerHover.open {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(1.2);
+        }
+
+        .centerHover:hover span { color: #FFF; text-shadow: 0 0 15px rgba(255,255,255,0.6); }
+        .centerHover:hover span:before, .centerHover:hover span:after { background-color: #FFF; width: 24px; }
+
+        .centerHover span {
+            color: #666;
+            font-family: serif;
+            font-size: 18px;
+            position: relative;
+            transition: all 500ms ease;
+            letter-spacing: 3px;
+        }
+
+        .centerHover span:before, .centerHover span:after {
+            content: '';
+            display: inline-block;
+            height: 1px;
+            width: 16px;
+            margin-bottom: 5px;
+            background-color: #666;
+            transition: all 500ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .centerHover span:before { margin-right: 14px; }
+        .centerHover span:after { margin-left: 14px; }
+
+        /* ==================== 底层动画画布 ==================== */
+        #blackhole {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
 </head>
 <body>
 
-  <div class="click-to-play" id="clickHint">点击屏幕 体验大厂级全动态差值穿梭</div>
+    <div class="ui-layer">
+        <div class="audio-control-panel">
+            <div class="track-info" id="trackInfo">1.mp3</div>
+            <button class="audio-btn" id="btnShuffle" title="随机播放"><span class="icon-mode">RAND</span></button>
+            <button class="audio-btn" id="btnPrev" title="上一首"><span class="icon-prev"></span></button>
+            <button class="audio-btn" id="btnPlay" title="播放/暂停"><span class="icon-play"></span><span class="icon-pause"></span></button>
+            <button class="audio-btn" id="btnNext" title="下一首"><span class="icon-next"></span></button>
+            <button class="audio-btn" id="btnLoop" title="单曲循环"><span class="icon-mode">ONE</span></button>
+        </div>
 
-  <div class="webgl-section" id="webglSection">
-    <div class="canvas-container" id="canvasContainer">
-      <canvas id="space"></canvas>
+        <div class="centerHover"><span>ENTER</span></div>
     </div>
-  </div>
 
-  <script>
-    // ===================================================
-    // 大厂核心：动态差值扩张与能量归一化算法
-    // ===================================================
-    class AudioExpansionEngine {
-      constructor() {
-        this.audioCtx = null;
-        this.analyser = null;
-        this.dataArray = null;
-        this.isReady = false;
+    <div id="blackhole"></div>
 
-        this.warpSpeed = 0;
+    <script>
+        // ==================== 音频与真实Web Audio频谱系统 ====================
+        const playlist = ['1.mp3', '2.mp3', '3.mp3']; 
+        let currentTrackIndex = 0;
+        let isShuffle = false;
+        let isLoop = false;
 
-        // 动态 Min-Max 追踪窗口（用于强行拉大差值）
-        this.historyLength = 180; // 追踪过去约 3 秒的数据
-        this.bassHistory = [];
+        const audio = new Audio();
+        audio.src = playlist[currentTrackIndex];
         
-        // 智能环境基准线
-        this.dynamicMin = 40;     
-        this.dynamicMax = 160;    
+        // 关键设置：GitHub Pages 上必须声明匿名跨域，否则浏览器不抛出频谱数据
+        audio.crossOrigin = "anonymous"; 
 
-        this.shakeIntensity = 0;
-        this.isBeatDrop = false;
-      }
+        let audioCtx, analyser, source, dataArray;
+        let isAudioContextInitialized = false;
 
-      init(audioElement) {
-        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        this.analyser = this.audioCtx.createAnalyser();
+        // 三频段解耦量子控制因子
+        let audioFactors = {
+            bass: 0,
+            mid: 0,
+            treble: 0
+        };
+
+        function initAudioContext() {
+            if (isAudioContextInitialized) return;
+            
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 256; // 适中采样，兼顾低延迟与性能
+                
+                const bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+
+                source = audioCtx.createMediaElementSource(audio);
+                source.connect(analyser);
+                analyser.connect(audioCtx.destination);
+                
+                isAudioContextInitialized = true;
+                console.log("Web Audio API 真实频谱流加载成功。");
+            } catch(e) {
+                console.error("音频流被拦截。请检查是否在GitHub Pages(https)环境下运行:", e);
+            }
+        }
+
+        // 非对称阻尼缓动：对乐曲节奏的暴增响应极快，衰减时顺滑滑行
+        function smoothLerp(current, target, upSpeed = 0.4, downSpeed = 0.08) {
+            let diff = target - current;
+            return current + diff * (diff > 0 ? upSpeed : downSpeed);
+        }
+
+        function updateAnalyserData() {
+            // 未播放或未初始化时，物理能量往 0 缓缓衰减
+            if (audio.paused || !isAudioContextInitialized || !dataArray) {
+                audioFactors.bass = smoothLerp(audioFactors.bass, 0, 0.1, 0.05);
+                audioFactors.mid = smoothLerp(audioFactors.mid, 0, 0.1, 0.05);
+                audioFactors.treble = smoothLerp(audioFactors.treble, 0, 0.1, 0.05);
+                return;
+            }
+
+            // 提取真实的频谱字节数组
+            analyser.getByteFrequencyData(dataArray);
+            
+            let len = dataArray.length;
+            let bassSum = 0, midSum = 0, trebleSum = 0;
+
+            // 严格按频域切片数据：前20%为低频（鼓点），中50%为中频（人声），后30%为高频
+            for (let i = 0; i < len; i++) {
+                if (i < len * 0.2) {
+                    bassSum += dataArray[i];
+                } else if (i < len * 0.7) {
+                    midSum += dataArray[i];
+                } else {
+                    trebleSum += dataArray[i];
+                }
+            }
+
+            // 归一化并大幅提升控制乘数 (例如 * 3.8)，确保黑洞粒子产生肉眼可见的暴烈拉伸
+            let targetBass = (bassSum / (len * 0.2 * 255)) * 3.8;
+            let targetMid = (midSum / (len * 0.5 * 255)) * 3.0;
+            let targetTreble = (trebleSum / (len * 0.3 * 255)) * 2.5;
+
+            // 注入阻尼系统
+            audioFactors.bass = smoothLerp(audioFactors.bass, targetBass, 0.45, 0.08);
+            audioFactors.mid = smoothLerp(audioFactors.mid, targetMid, 0.35, 0.07);
+            audioFactors.treble = smoothLerp(audioFactors.treble, targetTreble, 0.30, 0.06);
+        }
+
+        // ==================== 智能能量响应黑洞粒子系统 ====================
+        function blackhole(element) {
+            const container = document.querySelector(element);
+            
+            let cw = window.innerWidth;
+            let ch = window.innerHeight;
+            
+            const maxorbit = 255; 
+            let centery = ch / 2;
+            let centerx = cw / 2;
+
+            const stars = [];
+
+            const canvas = document.createElement('canvas');
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = cw * dpr;
+            canvas.height = ch * dpr;
+            container.appendChild(canvas);
+            
+            const context = canvas.getContext("2d");
+            context.scale(dpr, dpr);
+
+            function rotate(cx, cy, x, y, angle) {
+                const cos = Math.cos(angle);
+                const sin = Math.sin(angle);
+                return [
+                    (cos * (x - cx)) + (sin * (y - cy)) + cx,
+                    (cos * (y - cy)) - (sin * (x - cx)) + cy
+                ];
+            }
+
+            class Star {
+                constructor() {
+                    const rands = [Math.random() * (maxorbit / 2) + 1, Math.random() * (maxorbit / 2) + maxorbit];
+                    this.orbital = (rands.reduce((p, c) => p + c, 0) / rands.length);
+                    
+                    this.x = centerx; 
+                    this.y = centery + this.orbital; 
+                    this.yOrigin = centery + this.orbital; 
+
+                    this.baseSpeed = (Math.floor(Math.random() * 2.0) + 0.6) * Math.PI / 180;
+                    this.currentRotation = Math.random() * Math.PI * 2; 
+
+                    this.id = stars.length; 
+                    
+                    // 基于宇宙天体吸积盘分布判断星环归属
+                    if (this.orbital < maxorbit * 0.35) {
+                        this.freqType = 'bass';    // 内圈粒子：听从重低音
+                        this.colorStr = '255, 255, 255'; 
+                    } else if (this.orbital < maxorbit * 0.75) {
+                        this.freqType = 'mid';     // 中圈粒子：听从中频人声
+                        this.colorStr = '235, 240, 255';
+                    } else {
+                        this.freqType = 'treble';  // 外圈粒子：听从高频乐器
+                        this.colorStr = '200, 215, 255';
+                    }
+
+                    this.prevR = this.currentRotation;
+                    this.prevX = this.x;
+                    this.prevY = this.y;
+
+                    stars.push(this);
+                }
+
+                draw() {
+                    let dynamicVelocity = this.baseSpeed;
+                    let shake = 0;
+
+                    // 基础音频频率控制映射
+                    if (this.freqType === 'bass') {
+                        dynamicVelocity *= (1 + audioFactors.bass * 15.0); 
+                    } else if (this.freqType === 'mid') {
+                        dynamicVelocity *= (1 + audioFactors.mid * 12.0);  
+                    } else if (this.freqType === 'treble') {
+                        dynamicVelocity *= (1 + audioFactors.treble * 8.0);
+                        shake = (Math.random() - 0.5) * audioFactors.treble * 7.5; // 高音震颤
+                    }
+
+                    // 【核心逻辑：按低音能量实时判断“时空收缩”】
+                    // 当重低音（Bass）爆表超过 1.6 阈值时，直接触发无缝圆圈视觉
+                    if (audioFactors.bass > 1.6) {
+                        // 1. 旋转角速度瞬间拉满，使前后两帧的线段在一帧内直接闭合融合成“发光圆圈”
+                        dynamicVelocity += 4.5; 
+                        // 2. 粒子轨道半径向内迅速收缩塌陷，融汇成质感扎实的超时空圆环
+                        let targetY = this.yOrigin * 0.45; 
+                        this.y = smoothLerp(this.y, targetY, 0.3, 0.1);
+                    } else {
+                        // 3. 低音减弱时，丝滑散开恢复到原有的宇宙星环吸积盘形态
+                        this.y = smoothLerp(this.y, this.yOrigin + shake, 0.1, 0.15);
+                    }
+
+                    this.currentRotation += dynamicVelocity * 0.5;
+
+                    context.save();
+                    
+                    // 基于频域能量进行无级闪烁调光
+                    let alpha = (1 - ((this.orbital) / 270));
+                    if (this.freqType === 'bass') alpha += audioFactors.bass * 0.3;
+                    if (this.freqType === 'treble') alpha += audioFactors.treble * 0.4;
+                    
+                    context.fillStyle = `rgba(${this.colorStr}, ${Math.min(1, Math.max(0.12, alpha))})`;
+                    context.strokeStyle = context.fillStyle;
+                    context.lineWidth = this.freqType === 'bass' ? 1.5 : 1.0; 
+                    
+                    // 矩阵前置点连线，拉出具有天体拉伸质感的超时空光带长尾
+                    const oldPos = rotate(centerx, centery, this.prevX, this.prevY, this.prevR - this.currentRotation);
+                    
+                    context.translate(centerx, centery);
+                    context.rotate(this.currentRotation);
+                    context.translate(-centerx, -centery);
+                    
+                    context.beginPath();
+                    context.moveTo(oldPos[0], oldPos[1]);
+                    context.lineTo(this.x, this.y);
+                    context.stroke();
+                    context.restore();
+
+                    this.prevR = this.currentRotation;
+                    this.prevX = this.x;
+                    this.prevY = this.y;
+                }
+            }
+
+            // 视口高分屏自适应
+            window.addEventListener('resize', () => {
+                cw = window.innerWidth;
+                ch = window.innerHeight;
+                canvas.width = cw * dpr;
+                canvas.height = ch * dpr;
+                centerx = cw / 2;
+                centery = ch / 2;
+                context.scale(dpr, dpr);
+                stars.forEach(star => {
+                    star.x = centerx;
+                    star.yOrigin = centery + star.orbital;
+                });
+            });
+
+            // ENTER大按钮点击联动：不再由定时状态机接管，仅激活音频上下文并直接开播
+            const centerHover = document.querySelector('.centerHover');
+            centerHover.addEventListener('click', function(e) {
+                initAudioContext();
+                this.classList.add('open'); // 优雅离场
+                playTrack();
+            });
+
+            function loop() {
+                updateAnalyserData();
+
+                // 核心黑洞视界长尾残留光效（调低至0.16，使融合成发光圈时边缘更细腻顺滑）
+                context.fillStyle = 'rgba(6,6,8,0.16)'; 
+                context.fillRect(0, 0, cw, ch);
+
+                for (let i = 0; i < stars.length; i++) { 
+                    if (stars[i] !== undefined) stars[i].draw(); 
+                }
+                requestAnimationFrame(loop);
+            }
+
+            function init() {
+                context.fillStyle = 'rgba(6,6,8,1)'; 
+                context.fillRect(0, 0, cw, ch);
+                for (let i = 0; i < 2200; i++) new Star();
+                loop();
+            }
+            init();
+        }
+
+        // ==================== 控制台与原生控制交互层 ====================
+        const btnPlay = document.getElementById('btnPlay');
+        const btnPrev = document.getElementById('btnPrev');
+        const btnNext = document.getElementById('btnNext');
+        const btnShuffle = document.getElementById('btnShuffle');
+        const btnLoop = document.getElementById('btnLoop');
+        const trackInfo = document.getElementById('trackInfo');
+
+        function updateUI() {
+            trackInfo.textContent = playlist[currentTrackIndex];
+            if (audio.paused) {
+                btnPlay.classList.remove('playing');
+            } else {
+                btnPlay.classList.add('playing');
+            }
+            if (isShuffle) btnShuffle.classList.add('active');
+            else btnShuffle.classList.remove('active');
+            if (isLoop) btnLoop.classList.add('active');
+            else btnLoop.classList.remove('active');
+        }
+
+        function playTrack() {
+            initAudioContext(); 
+            // 恢复因浏览器安全策略引发的挂起状态
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            audio.play().then(() => {
+                updateUI();
+            }).catch(err => {
+                console.log("等待用户交互以触发音频管线机制: ", err);
+            });
+        }
+
+        function togglePlay(e) {
+            e.stopPropagation(); 
+            if (audio.paused) {
+                playTrack();
+            } else {
+                audio.pause();
+                updateUI();
+            }
+        }
+
+        function nextTrack(e) {
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (isLoop) {
+                audio.currentTime = 0;
+            } else if (isShuffle) {
+                currentTrackIndex = Math.floor(Math.random() * playlist.length);
+            } else {
+                currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+            }
+            audio.src = playlist[currentTrackIndex];
+            playTrack();
+        }
+
+        function prevTrack(e) {
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (isShuffle) {
+                currentTrackIndex = Math.floor(Math.random() * playlist.length);
+            } else {
+                currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
+            }
+            audio.src = playlist[currentTrackIndex];
+            playTrack();
+        }
+
+        btnPlay.addEventListener('click', togglePlay);
+        btnNext.addEventListener('click', nextTrack);
+        btnPrev.addEventListener('click', prevTrack);
         
-        this.analyser.fftSize = 256; 
-        this.analyser.smoothingTimeConstant = 0.15; // 极速响应，拒绝内部粘滞
-
-        const source = this.audioCtx.createMediaElementSource(audioElement);
-        source.connect(this.analyser);
-        this.analyser.connect(this.audioCtx.destination);
-
-        this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-        this.isReady = true;
-      }
-
-      update() {
-        if (!this.isReady) return 0;
-
-        this.analyser.getByteFrequencyData(this.dataArray);
-
-        // 1. 抓取核心大鼓重低音频段
-        let bassSum = 0;
-        const bins = 4;
-        for (let i = 0; i < bins; i++) {
-          bassSum += this.dataArray[i];
-        }
-        let currentBass = bassSum / bins;
-
-        // 2. 动态自适应算法：实时计算当前歌曲近3秒内的绝对高潮点和绝对静音点
-        this.bassHistory.push(currentBass);
-        if (this.bassHistory.length > this.historyLength) this.bassHistory.shift();
-
-        const calculatedMin = Math.min(...this.bassHistory);
-        const calculatedMax = Math.max(...this.bassHistory);
-
-        // 使用缓动平滑基准线，防止遇到突发噪音时画面崩溃
-        this.dynamicMin = this.dynamicMin * 0.95 + Math.max(calculatedMin, 30) * 0.05;
-        this.dynamicMax = this.dynamicMax * 0.95 + Math.max(calculatedMax, 100) * 0.05;
-
-        // 3. 核心：归一化处理（将窄小的差值强行放大到 0.0 ~ 1.0 满额解析度）
-        let normalizedBass = 0;
-        if (this.dynamicMax > this.dynamicMin) {
-          normalizedBass = (currentBass - this.dynamicMin) / (this.dynamicMax - this.dynamicMin);
-          normalizedBass = Math.max(0, Math.min(1, normalizedBass)); // 裁切边界
-        }
-
-        // 4. 大厂秘籍：三阶功率暴涨公式（Exponential Scaling）
-        // 通过指数大幅度压低轻拍速度，疯狂抬高重拍速度，彻底拉开差值！
-        let targetSpeed = Math.pow(normalizedBass, 3.0); 
-
-        // 5. 非对称物理阻尼（加速瞬间完成，减速优雅滑行）
-        if (targetSpeed > this.warpSpeed) {
-          // 瞬间提速：几乎零延迟，完美对齐鼓点的物理打击感
-          this.warpSpeed += (targetSpeed - this.warpSpeed) * 0.45;
-        } else {
-          // 优雅减速：模拟高级太空阻尼，顺滑落差
-          this.warpSpeed += (targetSpeed - this.warpSpeed) * 0.06;
-        }
-
-        // 6. 衍生重拍震颤反馈
-        this.isBeatDrop = false;
-        if (this.warpSpeed > 0.65 && targetSpeed > 0.8) {
-          this.shakeIntensity = (this.warpSpeed - 0.65) * 16;
-          this.isBeatDrop = true;
-        }
-        this.shakeIntensity *= 0.82;
-
-        return this.warpSpeed;
-      }
-    }
-
-    // ===================================================
-    // Canvas 高性能粒子渲染
-    // ===================================================
-    const canvas = document.getElementById("space");
-    const ctx = canvas.getContext("2d");
-    const clickHint = document.getElementById("clickHint");
-
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    const numStars = 1900;
-    const focalLength = canvas.width * 2;
-    let centerX = canvas.width / 2;
-    let centerY = canvas.height / 2;
-    const baseTrailLength = 1.5; // 压低静止时的尾迹
-    const maxTrailLength = 40;   // 放大高潮时的冲刺感
-
-    let stars = [];
-    let audioStarted = false;
-    let currentWarp = 0;
-
-    const expansionEngine = new AudioExpansionEngine();
-
-    function initializeStars() {
-      stars = [];
-      for (let i = 0; i < numStars; i++) {
-        const isCyan = Math.random() > 0.82;
-        stars.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          z: Math.random() * canvas.width,
-          o: 0.3 + Math.random() * 0.7,
-          color: isCyan ? "rgba(145, 240, 255, " : "rgba(255, 255, 255, ",
-          trail: []
+        btnShuffle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isShuffle = !isShuffle;
+            if (isShuffle) isLoop = false; 
+            updateUI();
         });
-      }
-    }
 
-    function startEngine() {
-      if (audioStarted) return;
-      audioStarted = true;
-      clickHint.classList.add("hidden");
+        btnLoop.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isLoop = !isLoop;
+            if (isLoop) isShuffle = false;
+            updateUI();
+        });
 
-      const audio = new Audio();
-      audio.src = "1.mp3";
-      audio.crossOrigin = "anonymous";
-      audio.loop = true;
+        audio.addEventListener('ended', () => {
+            if (isLoop) {
+                audio.currentTime = 0;
+                playTrack();
+            } else {
+                nextTrack();
+            }
+        });
 
-      expansionEngine.init(audio);
-      audio.play();
-    }
-
-    function moveStars() {
-      // 速度区间扩充：平时底速只有 0.8，爆发时狂飙到 95，差值拉满
-      const speed = 0.8 + currentWarp * 94.2; 
-      for (let i = 0; i < stars.length; i++) {
-        const star = stars[i];
-        star.z -= speed;
-        if (star.z < 1) {
-          star.z = canvas.width;
-          star.x = Math.random() * canvas.width;
-          star.y = Math.random() * canvas.height;
-          star.trail = [];
-        }
-      }
-    }
-
-    function drawStars() {
-      if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        centerX = canvas.width / 2;
-        centerY = canvas.height / 2;
-      }
-
-      // 动态残影与尾迹长度控制
-      const trailLength = Math.floor(baseTrailLength + currentWarp * (maxTrailLength - baseTrailLength));
-      const clearAlpha = expansionEngine.isBeatDrop ? 0.25 : (1 - currentWarp * 0.92);
-      
-      ctx.fillStyle = `rgba(17,17,17,${clearAlpha})`;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // 重拍屏幕震颤反馈
-      if (expansionEngine.shakeIntensity > 0.2) {
-        const sx = (Math.random() - 0.5) * expansionEngine.shakeIntensity;
-        const sy = (Math.random() - 0.5) * expansionEngine.shakeIntensity;
-        canvas.style.transform = `translate(${sx}px, ${sy}px)`;
-      } else {
-        canvas.style.transform = "none";
-      }
-
-      // 绘制流星线段
-      for (let i = 0; i < stars.length; i++) {
-        const star = stars[i];
-        const px = (star.x - centerX) * (focalLength / star.z) + centerX;
-        const py = (star.y - centerY) * (focalLength / star.z) + centerY;
-
-        star.trail.push({ x: px, y: py });
-        if (star.trail.length > trailLength) {
-          star.trail.shift();
-        }
-
-        if (star.trail.length > 1) {
-          ctx.beginPath();
-          ctx.moveTo(star.trail[0].x, star.trail[0].y);
-          for (let j = 1; j < star.trail.length; j++) {
-            ctx.lineTo(star.trail[j].x, star.trail[j].y);
-          }
-          
-          // 在极高速度下激发出绚丽的色彩
-          ctx.strokeStyle = expansionEngine.isBeatDrop ? star.color + `${star.o})` : `rgba(255,255,255,${star.o * 0.6})`;
-          ctx.lineWidth = expansionEngine.isBeatDrop ? 1.5 : 1;
-          ctx.stroke();
-        }
-
-        ctx.fillStyle = `rgba(255,255,255,${star.o})`;
-        ctx.fillRect(px, py, 1, 1);
-      }
-    }
-
-    function animate() {
-      requestAnimationFrame(animate);
-      
-      // 从自适应扩张引擎获取经过完美差值拉伸后的速度
-      currentWarp = expansionEngine.update();
-      
-      moveStars();
-      drawStars();
-    }
-
-    initializeStars();
-    animate();
-
-    window.addEventListener("click", startEngine);
-
-    window.addEventListener("resize", () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      centerX = canvas.width / 2;
-      centerY = canvas.height / 2;
-    });
-  </script>
+        document.addEventListener('DOMContentLoaded', () => {
+            blackhole('#blackhole');
+            updateUI();
+        });
+    </script>
 </body>
 </html>
